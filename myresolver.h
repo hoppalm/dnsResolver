@@ -45,6 +45,27 @@ using std::istringstream;
 
 #define BUFFERSIZE 512
 
+//Header Struct
+typedef struct{
+    unsigned int ID: 16; /*A 16 bit identifier assigned by the program that generates any kind of query*/
+    unsigned int QR: 1; /*A one bit field that specifies whether this message is a query (0), or a response (1).*/
+    unsigned int OPCODE: 4; /*A four bit field that specifies kind of query in this message*/
+    unsigned int AA: 1; /*Authoritative Answer - this bit is only meaningful in responses, and specifies that the responding
+                         name server is an authority for the domain name in question section.*/
+    unsigned int TC: 1; /*specifies that this message was truncated*/
+    unsigned int RD: 1; /* this bit directs the name server to pursue the query recursively*/
+    unsigned int RA: 1; /*this be is set or cleared in a response, and denotes whether recursive
+                         query support is available in the name server*/
+    unsigned int Z: 3; /*Reserved for future use.*/
+    unsigned int RCODE: 4; /*Response code - this 4 bit field is set as part of responses*/
+    unsigned int QDCOUNT: 16; /*an unsigned 16 bit integer specifying the number of entries in the question section*/
+    unsigned int ANCOUNT: 16; /*an unsigned 16 bit integer specifying the number of resource records in the answer section*/
+    unsigned int NSCOUNT: 16; /*an unsigned 16 bit integer specifying the number of name server resource records in the
+                               authority records section*/
+    unsigned int ARCOUNT: 16; /*an unsigned 16 bit integer specifying the number of resource records in the additional
+                               records section*/
+} Header;
+
 // from project 1
 vector<string> &split(const string &s, char delim, vector<string> &tokens);
 vector<string> split(const string &s, char delim);
@@ -53,7 +74,6 @@ bool _isDigitsOrDots(const string &s);
 bool isValidIP(const string &s);
 void *get_in_addr(struct sockaddr *sa);
 string getHostIP();
-string getHostname();
 int getPortFromSocket(int sock);
 int serverCreateSocketBindAndListen(const string& port);
 int serverCreateSocketBindAndListen();
@@ -73,13 +93,13 @@ void myresolver(string URL, string recordType);
 void populateRootServers();
 vector<string> IPv4RootServers;
 vector<string> IPv6RootServers;
-
-
+void populateHeaderPacket(Header* header);
 
 /*
  * populates the root server vectors
  */
 void populateRootServers(){
+    //ipv4 servers
     IPv4RootServers.push_back("192.5.5.241");
     IPv4RootServers.push_back("192.112.36.4");
     IPv4RootServers.push_back("128.63.2.53");
@@ -88,6 +108,7 @@ void populateRootServers(){
     IPv4RootServers.push_back("193.0.14.129");
     IPv4RootServers.push_back("199.7.83.42");
     
+    //ipv6 servers
     IPv6RootServers.push_back("2001:500:2f::f");
     IPv6RootServers.push_back("2001:500:1::803f:235");
     IPv6RootServers.push_back("2001:7fe::53");
@@ -188,15 +209,6 @@ string getHostIP() {
 		}
 	}
 	return "";
-}
-
-/*
- * Return the hostname of this machine
- */
-string getHostname() {
-	char hostname[128];
-	gethostname(hostname, sizeof hostname);
-	return string(hostname);
 }
 
 /*
@@ -464,19 +476,49 @@ string recvURL(int socket) {
 	return recvAll(socket);
 }
 
+/*
+ * Populating DNS Packet
+ */
+void populateHeaderPacket(Header * header){
+    /*char output[4096];
+    while(1) {
+        printf("You: ");
+        fgets(output, sizeof(output), stdin);
+        if (strlen(output) > 141) {
+            fprintf(stderr,"Error: Input too long.\n");
+        }
+        else {
+            break;
+        }
+    }
+    output[strlen(output)-1] = '\0';
+    packetInformation->Version = htons(457);
+    packetInformation->length = htons(strlen(output));
+    strcpy(packetInformation->Message,output);*/
+}
+
 
 /*
  * main function for the myresolver
  */
 void myresolver(string URL, string recordType){
+    Header header;
     populateRootServers();
+
+    cout << "Debug" << endl;
     for (unsigned int i = 0; i < IPv4RootServers.size(); i++){
         cout << IPv4RootServers.at(i) << endl;
     }
     
+    cout << "Debug" << endl;
     for (unsigned int i = 0; i < IPv6RootServers.size(); i++){
         cout << IPv6RootServers.at(i) << endl;
     }
+    
+    populateHeaderPacket(&header);
+    
 }
+
+
 
 #endif /* MYRESOLVER_H_ */
