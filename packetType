@@ -1,6 +1,16 @@
-Packet type needed for the project
+Documentation
 
-- ID: A 16 bit identifier assigned by the program that generates any kind of query.
-- QR: A one bit field that specifies whether this message is a query (0), or a response (1)
-- OPCODE: A four bit field that specifies kind of query in this message. You should use 0, representing a standard query.
-- AA: Authoritative Answer - this bit is only meaningful in responses, and specifies that the responding name server is an authority for the domain name in question section.
+-IPv4 & IPv6 addresses
+f.root-servers.net.	441072	IN	A	192.5.5.241
+f.root-servers.net.	441240	IN	AAAA	2001:500:2f::f
+g.root-servers.net.	423174	IN	A	192.112.36.4
+h.root-servers.net.	376032	IN	A	128.63.2.53
+h.root-servers.net.	378695	IN	AAAA	2001:500:1::803f:235
+i.root-servers.net.	455824	IN	A	192.36.148.17
+i.root-servers.net.	462500	IN	AAAA	2001:7fe::53
+j.root-servers.net.	445588	IN	A	192.58.128.30
+j.root-servers.net.	445890	IN	AAAA	2001:503:c27::2:30
+k.root-servers.net.	522405	IN	A	193.0.14.129
+k.root-servers.net.	524823	IN	AAAA	2001:7fd::1
+l.root-servers.net.	476395	IN	A	199.7.83.42
+l.root-servers.net.	477481	IN	AAAA	2001:500:3::42

@@ -70,6 +70,8 @@ string recvURL(int socket);
 
 //This project
 void myresolver(string URL, string recordType);
+string IPv4List[]={"192.5.5.241", "192.112.36.4", "128.63.2.53", "192.36.148.17", "192.58.128.30", "193.0.14.129", "199.7.83.42"};
+string IPv6List[]={"2001:500:2f::f", "2001:500:1::803f:235", "2001:7fe::53", "2001:503:c27::2:30", "2001:7fd::1", "2001:500:3::42"};
 
 
 /*
