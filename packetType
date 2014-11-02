@@ -1,0 +1,6 @@
+Packet type needed for the project
+
+- ID: A 16 bit identifier assigned by the program that generates any kind of query.
+- QR: A one bit field that specifies whether this message is a query (0), or a response (1)
+- OPCODE: A four bit field that specifies kind of query in this message. You should use 0, representing a standard query.
+- AA: Authoritative Answer - this bit is only meaningful in responses, and specifies that the responding name server is an authority for the domain name in question section.
