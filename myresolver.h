@@ -66,6 +66,12 @@ typedef struct{
                                records section*/
 } Header;
 
+typedef struct{
+    char * QNAME;
+    unsigned int QTYPE: 16;
+    unsigned int QCLASS: 16;
+} Question;
+
 // from project 1
 vector<string> &split(const string &s, char delim, vector<string> &tokens);
 vector<string> split(const string &s, char delim);
@@ -93,7 +99,9 @@ void myresolver(string URL, string recordType);
 void populateRootServers();
 vector<string> IPv4RootServers;
 vector<string> IPv6RootServers;
-void populateHeaderPacket(Header* header);
+void populateDNSHeader(Header* header);
+void populateQuestionPacket(Question * question, string URL, int queryType);
+void convertNameToDNS(string URL);
 
 /*
  * populates the root server vectors
@@ -477,45 +485,59 @@ string recvURL(int socket) {
 }
 
 /*
- * Populating DNS Packet
+ * Populating DNS Header Packet
  */
-void populateHeaderPacket(Header * header){
-    /*char output[4096];
-    while(1) {
-        printf("You: ");
-        fgets(output, sizeof(output), stdin);
-        if (strlen(output) > 141) {
-            fprintf(stderr,"Error: Input too long.\n");
-        }
-        else {
-            break;
-        }
-    }
-    output[strlen(output)-1] = '\0';
-    packetInformation->Version = htons(457);
-    packetInformation->length = htons(strlen(output));
-    strcpy(packetInformation->Message,output);*/
+void populateDNSHeader(Header * header){
+    cout << "Debug: " << getpid() << endl;
+    header->ID = htons(getpid());
+    header->QR = 0;
+    header->OPCODE = 0;
+    header->AA = 0;
+    header->TC = 0;
+    header->RD = 1;
+    header->RA = 0;
+    header->Z = 0;
+    header->RCODE = 0;
+    header->QDCOUNT = htons(1); // one question
+    header->ANCOUNT = 0;
+    header->NSCOUNT = 0;
+    header->ARCOUNT = 0;
 }
+
+void populateQuestionPacket(Question * question, string URL, int queryType){
+    
+}
+
+
+void convertNameToDNS(string URL){
+    
+}
+
+
 
 
 /*
  * main function for the myresolver
  */
-void myresolver(string URL, string recordType){
+void myresolver(string URL, int recordType){
     Header header;
+    Question question;
     populateRootServers();
 
-    cout << "Debug" << endl;
+    cout << "Debug: IPv4RootServers  " << endl;
     for (unsigned int i = 0; i < IPv4RootServers.size(); i++){
-        cout << IPv4RootServers.at(i) << endl;
+        cout << IPv4RootServers.at(i) << " ";
     }
+    cout<< endl;
     
-    cout << "Debug" << endl;
+    cout << "Debug: IPv6RootServers " << endl;
     for (unsigned int i = 0; i < IPv6RootServers.size(); i++){
         cout << IPv6RootServers.at(i) << endl;
     }
     
-    populateHeaderPacket(&header);
+    populateDNSHeader(&header);
+    populateQuestionPacket(&question, URL, recordType);
+    
     
 }
 

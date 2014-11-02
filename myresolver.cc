@@ -13,6 +13,7 @@ int main(int argc, char* argv[]) {
     
 	string URL = "";
 	string recordType = "";
+    int recordID = 0;
 
 	if (argc < 2) {
 		cerr << "ERROR: too few arguments" << endl;
@@ -25,7 +26,13 @@ int main(int argc, char* argv[]) {
 	else if (argc == 3) {
         URL = string(argv[1]);
         recordType = argv[2];
-        if (!(recordType.compare("AAAA") == 0 || recordType.compare("A") == 0 || recordType.compare("aaaa") == 0 || recordType.compare("a") == 0)) {
+        if (recordType.compare("AAAA") == 0 || recordType.compare("aaaa") == 0){
+            recordID = 28;
+        }
+        else if(recordType.compare("A") == 0 || recordType.compare("a") == 0) {
+            recordID = 1;
+        }
+        else {
             cerr << "RRTYPE given must be AAAA or A please try again" << endl;
             exit(1);
         }
@@ -36,7 +43,7 @@ int main(int argc, char* argv[]) {
 		exit(1);
 	}
 
-	myresolver(URL, recordType);
+	myresolver(URL, recordID);
 
 	return 0;
 }
