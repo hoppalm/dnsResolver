@@ -70,9 +70,31 @@ string recvURL(int socket);
 
 //This project
 void myresolver(string URL, string recordType);
-string IPv4List[]={"192.5.5.241", "192.112.36.4", "128.63.2.53", "192.36.148.17", "192.58.128.30", "193.0.14.129", "199.7.83.42"};
-string IPv6List[]={"2001:500:2f::f", "2001:500:1::803f:235", "2001:7fe::53", "2001:503:c27::2:30", "2001:7fd::1", "2001:500:3::42"};
+void populateRootServers();
+vector<string> IPv4RootServers;
+vector<string> IPv6RootServers;
 
+
+
+/*
+ * populates the root server vectors
+ */
+void populateRootServers(){
+    IPv4RootServers.push_back("192.5.5.241");
+    IPv4RootServers.push_back("192.112.36.4");
+    IPv4RootServers.push_back("128.63.2.53");
+    IPv4RootServers.push_back("192.36.148.17");
+    IPv4RootServers.push_back("192.58.128.30");
+    IPv4RootServers.push_back("193.0.14.129");
+    IPv4RootServers.push_back("199.7.83.42");
+    
+    IPv6RootServers.push_back("2001:500:2f::f");
+    IPv6RootServers.push_back("2001:500:1::803f:235");
+    IPv6RootServers.push_back("2001:7fe::53");
+    IPv6RootServers.push_back("2001:503:c27::2:30");
+    IPv6RootServers.push_back("2001:7fd::1");
+    IPv6RootServers.push_back("2001:500:3::42");
+}
 
 /*
  * Split a string into tokens based upon the delimiter
@@ -447,7 +469,14 @@ string recvURL(int socket) {
  * main function for the myresolver
  */
 void myresolver(string URL, string recordType){
+    populateRootServers();
+    for (unsigned int i = 0; i < IPv4RootServers.size(); i++){
+        cout << IPv4RootServers.at(i) << endl;
+    }
     
+    for (unsigned int i = 0; i < IPv6RootServers.size(); i++){
+        cout << IPv6RootServers.at(i) << endl;
+    }
 }
 
 #endif /* MYRESOLVER_H_ */
