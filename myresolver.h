@@ -30,6 +30,7 @@
 #include <time.h>
 
 using std::string;
+using std::ostringstream;
 using std::stringstream;
 using std::vector;
 using std::cout;
@@ -101,7 +102,8 @@ vector<string> IPv4RootServers;
 vector<string> IPv6RootServers;
 void populateDNSHeader(Header* header);
 void populateQuestionPacket(Question * question, string URL, int queryType);
-void convertNameToDNS(string URL);
+string convertNameToDNS(string URL);
+string convertIntToString (int number);
 
 /*
  * populates the root server vectors
@@ -505,16 +507,56 @@ void populateDNSHeader(Header * header){
 }
 
 void populateQuestionPacket(Question * question, string URL, int queryType){
-    
+    string DNSName = convertNameToDNS(URL);
+    cout << "Debug host name : " << DNSName << endl;
 }
 
 
-void convertNameToDNS(string URL){
+string convertNameToDNS(string URL){
     
+    vector<int> indexes;
+    string DNSName;
+    
+    int index = URL.find(".");
+    
+    while (index >= 0){
+        indexes.push_back(index);
+        index = URL.find(".",index+1);
+    }
+    
+    int position = 0;
+    //cout<< indexes.size() << endl;
+    DNSName.append(convertIntToString(indexes.at(position)));
+    position++;
+    for (int i = 0; i< URL.length();i++) {
+        if (URL.at(i) == '.') {
+            int number;
+            if (position >= indexes.size()){
+                number = URL.length() - indexes.at(position-1);
+            }
+            else {
+                cout << position << endl;
+                number = indexes.at(position) - indexes.at(position-1);
+                position++;
+            }
+            DNSName.append(convertIntToString(number-1));
+        }
+        else {
+            DNSName.append(1,URL.at(i));
+        }
+    }
+    
+    DNSName.append(1,'0');
+    
+    return DNSName;
 }
-
-
-
+                   
+string convertIntToString (int number)
+{
+    ostringstream tempString;
+    tempString<<number;
+    return tempString.str();
+}
 
 /*
  * main function for the myresolver
@@ -524,16 +566,17 @@ void myresolver(string URL, int recordType){
     Question question;
     populateRootServers();
 
-    cout << "Debug: IPv4RootServers  " << endl;
+    cout << "Debug: IPv4RootServers  ";
     for (unsigned int i = 0; i < IPv4RootServers.size(); i++){
         cout << IPv4RootServers.at(i) << " ";
     }
     cout<< endl;
     
-    cout << "Debug: IPv6RootServers " << endl;
+    cout << "Debug: IPv6RootServers ";
     for (unsigned int i = 0; i < IPv6RootServers.size(); i++){
-        cout << IPv6RootServers.at(i) << endl;
+        cout << IPv6RootServers.at(i) << " ";
     }
+    cout<< endl;
     
     populateDNSHeader(&header);
     populateQuestionPacket(&question, URL, recordType);
