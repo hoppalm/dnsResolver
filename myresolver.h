@@ -28,6 +28,7 @@
 #include <pthread.h>
 #include <fstream>
 #include <time.h>
+#include <bitset>
 
 using std::string;
 using std::ostringstream;
@@ -43,6 +44,7 @@ using std::remove;
 using std::ifstream;
 using std::istream;
 using std::istringstream;
+using std::bitset;
 
 #define BUFFERSIZE 512
 
@@ -84,6 +86,11 @@ typedef struct{
     char * RDATA;
 } ResponseData;
 
+typedef struct{
+    unsigned char compression : 2;
+    unsigned int offset : 14;
+} CompressionData;
+
 //This project
 int clientSetup(const char * server_IP, const char * port, struct sockaddr_in & serverAddress);
 void myresolver(string URL, string recordType);
@@ -93,6 +100,16 @@ void populateQuestionPacket(Question * question, int queryType);
 string convertNameToDNS(string URL);
 void sendRecieveDNSQuery(Header* header, Question * question, string DNSUrl, int socket, struct sockaddr_in serverAddress);
 void DNSResolver(string URL, int queryType, vector<string> &rootServers);
+string getName(char * buffer);
+string convertIntToString (int number);
+
+
+string convertIntToString (int number)
+{
+    ostringstream tempString;
+    tempString<<number;
+    return tempString.str();
+}
 
 
 /*
@@ -276,14 +293,35 @@ void sendRecieveDNSQuery(Header header, Question question, string DNSUrl, int so
         exit(1);
     }
     
+    char * temp;
+    int asciiNumbers[2];
+    
     currentPosition = &buffer[sizeof(Header) + strlen(queryName)+1 + sizeof(Question)];
+    temp = (char *)currentPosition;
+    asciiNumbers[0] = (int)(*temp);
+  
+    currentPosition = currentPosition + 1;
+    temp = (char *)currentPosition;
+    asciiNumbers[1] = (int)(*temp);
+    currentPosition = currentPosition + 1;
+    
+    bitset<8> bytes1 (asciiNumbers[0]);
+    
+    cout << bytes1 << endl;
+    
+    bitset<8> bytes2 (asciiNumbers[1] );
+    
+    cout << bytes2 << endl;
+    
+    int i;
     
     int numberOfAnswers = ntohs(responseHeader->ancount);
     cout << "Debug: number of Answers " << numberOfAnswers << endl;
-    char * temp = (char)buffer;
-    cout << "Debug: first digit " << (int)(*temp) << endl;
-    //loop though answers store in the answers vectors
     
+    //loop though answers store in the answers vectors
+    for(int i = 0; i < numberOfAnswers; i++){
+        
+    }
     int numberOfAuthorities = ntohs(responseHeader->nscount);
     cout << "Debug: number of Authorities " << numberOfAuthorities << endl;
     //loop through authorities "dont need to process anything"
@@ -296,6 +334,16 @@ void sendRecieveDNSQuery(Header header, Question question, string DNSUrl, int so
     //print out answers
     
 }
+
+string getName(char * buffer){
+    return "";
+}
+/*
+ typedef struct{
+ unsigned char compression : 2;
+ unsigned char offset : 14;
+ } CompressionData;
+ */
 
 //unsigned int id : 16; /*A 16 bit identifier assigned by the program that generates any kind of query*/
 //unsigned char rd: 1; /* this bit directs the name server to pursue the query recursively*/
