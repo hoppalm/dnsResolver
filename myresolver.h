@@ -278,57 +278,90 @@ void sendRecieveDNSQuery(Header header, Question question, string DNSUrl, int so
     int numberOfAnswers = ntohs(responseHeader->ancount);
     
     //loop though answers store in the answers vectors
-    /*
+    cout << "-----------------ANSWERS-------------------" << endl;
+    
     for(int i = 0; i < numberOfAnswers; i++){
-        int offset = getCompressionInformation(currentPosition);
-        currentPosition +=2;
-        cout << "Debug offset " << offset << endl;
-        string name = getName(offsetPosition, offset);
-        
-    }*/
-    
-    int numberOfAuthorities = ntohs(responseHeader->nscount);
-    
-    //loop through authorities "dont need to process anything"
-    
-    for(int i = 0; i < numberOfAuthorities; i++){
+        cout << endl;
         int offset = getCompressionInformation(currentPosition);
         currentPosition +=2;
         string name = getName(offsetPosition, offset);
         Response * response = (Response *)currentPosition;
         currentPosition = currentPosition + 10;
-        cout << "------------------------------------" << endl;
+
         cout << "Name: " << name << endl;
         cout << "Type: " << ntohs(response->TYPE) << endl;
         cout << "CLASS: " << ntohs(response->CLASS) << endl;
         cout << "TTL: " << ntohs(response->TTL) << endl; //giving me wrong answers
         cout << "RDLENGTH: " << ntohs(response->RDLENGTH) << endl;
-    
-        cout <<sizeof(Response) <<endl;
+        
         int length =ntohs(response->RDLENGTH);
         string rData = getRData(length, currentPosition);
         currentPosition = currentPosition + length;
         cout << "Rdata: " << rData << endl;
-        cout << "------------------------------------" << endl;
-    
-        unsigned char * temp;
-        temp = (unsigned char *) currentPosition;
-        cout << (int)*temp <<endl;
-    
+        
+        cout << endl;
     }
     
+    cout << "----------------------------------------------" << endl;
+    
+    int numberOfAuthorities = ntohs(responseHeader->nscount);
+    
+    //loop through authorities "dont need to process anything"
+    cout << "-----------------AUTHORITES-------------------" << endl;
+    for(int i = 0; i < numberOfAuthorities; i++){
+        cout << endl;
+        
+        int offset = getCompressionInformation(currentPosition);
+        currentPosition +=2;
+        string name = getName(offsetPosition, offset);
+        Response * response = (Response *)currentPosition;
+        currentPosition = currentPosition + 10;
+        cout << "------------------------------------------" << endl;
+        cout << "Name: " << name << endl;
+        cout << "Type: " << ntohs(response->TYPE) << endl;
+        cout << "CLASS: " << ntohs(response->CLASS) << endl;
+        cout << "TTL: " << ntohs(response->TTL) << endl; //giving me wrong answers
+        cout << "RDLENGTH: " << ntohs(response->RDLENGTH) << endl;
+        
+        int length =ntohs(response->RDLENGTH);
+        string rData = getRData(length, currentPosition);
+        currentPosition = currentPosition + length;
+        cout << "Rdata: " << rData << endl;
+
+        cout << endl;
+    }
+    cout << "----------------------------------------------" << endl;
     
     
     int numberOfAdditional = ntohs(responseHeader->arcount);
-    /*
+
+    cout << "-----------------ADDITIONAL-------------------" << endl;
     //loop through additionals store ips
     for(int i = 0; i < numberOfAdditional; i++){
+        cout << endl;
+        
         int offset = getCompressionInformation(currentPosition);
+        cout << offset << endl;
         currentPosition +=2;
-        cout << "Debug offset " << offset << endl;
         string name = getName(offsetPosition, offset);
+        Response * response = (Response *)currentPosition;
+        currentPosition = currentPosition + 10;
+        cout << "Name: " << name << endl;
+        cout << "Type: " << ntohs(response->TYPE) << endl;
+        cout << "CLASS: " << ntohs(response->CLASS) << endl;
+        cout << "TTL: " << ntohs(response->TTL) << endl; //giving me wrong answers
+        cout << "RDLENGTH: " << ntohs(response->RDLENGTH) << endl;
+        
+        int length =ntohs(response->RDLENGTH);
+        string rData = getRData(length, currentPosition);
+        currentPosition = currentPosition + length;
+        cout << "Rdata: " << rData << endl;
+        
+        cout << endl;
     }
-    */
+    
+    cout << "------------------------------------" << endl;
+    
     
     //print out answers
     
@@ -343,15 +376,18 @@ typedef struct{
 
 //get offset number for the compression
 int getCompressionInformation(char * currentPosition){
-    char * temp;
+    unsigned char * temp;
     int asciiNumbers[2];
     
-    temp = (char *)currentPosition;
-    asciiNumbers[0] = (int)(*temp);
+    temp = (unsigned char *)currentPosition;
+    asciiNumbers[0] = (  int)(*temp);
+    cout << asciiNumbers[0] << endl;
     
     currentPosition = currentPosition + 1;
-    temp = (char *)currentPosition;
-    asciiNumbers[1] = (int)(*temp);
+    temp = (unsigned char *)currentPosition;
+    asciiNumbers[1] = ( int)(*temp);
+    
+    cout <<asciiNumbers[1] << endl;
     currentPosition = currentPosition + 1;
     
     bitset<8> bytes1 (asciiNumbers[0]);
