@@ -68,7 +68,7 @@ typedef struct{
 } Header;
 
 typedef struct{
-    char * QNAME;
+    const char * QNAME;
     unsigned int QTYPE: 16;
     unsigned int QCLASS: 16;
 } Question;
@@ -97,18 +97,19 @@ string recvURL(int socket);
 
 //This project
 void myresolver(string URL, string recordType);
-void populateRootServers();
-vector<string> IPv4RootServers;
-vector<string> IPv6RootServers;
-void populateDNSHeader(Header* header);
+void populateRootServers(vector<string> &IPv4RootServers, vector<string> &IPv6RootServers);
+void populateDNSHeader();
 void populateQuestionPacket(Question * question, string URL, int queryType);
 string convertNameToDNS(string URL);
 string convertIntToString (int number);
+void sendDNSQuery(Header* header, Question * question);
+void DNSResolver(string URL, int queryType, vector<string> &rootServers);
+
 
 /*
  * populates the root server vectors
  */
-void populateRootServers(){
+void populateRootServers(vector<string> &IPv4RootServers, vector<string> &IPv6RootServers){
     //ipv4 servers
     IPv4RootServers.push_back("192.5.5.241");
     IPv4RootServers.push_back("192.112.36.4");
@@ -287,7 +288,7 @@ int serverCreateSocketBindAndListen(const string &port) {
 		cerr << "listen" << endl;
 		exit(1);
 	}
-
+    
 	return sock;
 }
 
@@ -328,7 +329,7 @@ int clientCreateSocketAndConnect(const string& server_IP, const string& port) {
 	struct addrinfo hints, *server_info, *p;
 	memset(&hints, 0, sizeof hints);
 	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_socktype = SOCK_DGRAM;
 	if ((rv = getaddrinfo(server_IP.c_str(), port.c_str(), &hints,
 			&server_info)) != 0) {
 		cerr << "getaddrinfo: " << gai_strerror(rv) << endl;
@@ -490,7 +491,7 @@ string recvURL(int socket) {
  * Populating DNS Header Packet
  */
 void populateDNSHeader(Header * header){
-    cout << "Debug: " << getpid() << endl;
+    cout << "Debug process id: " << getpid() << endl;
     header->ID = htons(getpid());
     header->QR = 0;
     header->OPCODE = 0;
@@ -508,6 +509,7 @@ void populateDNSHeader(Header * header){
 
 void populateQuestionPacket(Question * question, string URL, int queryType){
     string DNSName = convertNameToDNS(URL);
+    const char * dnsURL = DNSName.c_str();
     cout << "Debug host name : " << DNSName << endl;
 }
 
@@ -526,6 +528,11 @@ string convertNameToDNS(string URL){
     
     int position = 0;
     //cout<< indexes.size() << endl;
+    if (indexes.size() == 0){
+        cerr << "ERROR: URL is invalid please try again" << endl;
+        exit(1);
+    }
+    
     DNSName.append(convertIntToString(indexes.at(position)));
     position++;
     for (int i = 0; i< URL.length();i++) {
@@ -535,7 +542,7 @@ string convertNameToDNS(string URL){
                 number = URL.length() - indexes.at(position-1);
             }
             else {
-                cout << position << endl;
+                //cout << position << endl;
                 number = indexes.at(position) - indexes.at(position-1);
                 position++;
             }
@@ -558,13 +565,40 @@ string convertIntToString (int number)
     return tempString.str();
 }
 
+void sendDNSQuery(Header* header, Question * question){
+    
+}
+
+void DNSResolver(string URL, int queryType, vector<string> &rootServers){
+    
+    /*string port = "0";
+    string hostIP = getHostIP();
+    int serverSocket = serverCreateSocketBindAndListen(port);
+    int serverPort = getPortFromSocket(serverSocket);
+    cout << "listening on " << hostIP << " " << serverPort << ":" << endl;*/
+    int currentServerID = 0;
+    
+    Header header;
+    populateDNSHeader(&header);
+    
+    string currentIP = rootServers.at(currentServerID);
+    
+    int dnsSocket = clientCreateSocketAndConnect(currentIP, "53");
+    
+    Question question;
+    
+    populateQuestionPacket(&question, URL, queryType);
+}
+
+
+
 /*
- * main function for the myresolver
+ * main function for myresolver
  */
 void myresolver(string URL, int recordType){
-    Header header;
-    Question question;
-    populateRootServers();
+    vector<string> IPv4RootServers;
+    vector<string> IPv6RootServers;
+    populateRootServers(IPv4RootServers, IPv6RootServers);
 
     cout << "Debug: IPv4RootServers  ";
     for (unsigned int i = 0; i < IPv4RootServers.size(); i++){
@@ -578,8 +612,13 @@ void myresolver(string URL, int recordType){
     }
     cout<< endl;
     
-    populateDNSHeader(&header);
-    populateQuestionPacket(&question, URL, recordType);
+    if(recordType == 1) {
+        DNSResolver(URL, recordType, IPv4RootServers);
+    }
+    else {
+        DNSResolver(URL, recordType, IPv6RootServers);
+    }
+    
     
     
 }
