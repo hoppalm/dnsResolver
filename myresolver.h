@@ -48,22 +48,22 @@ using std::istringstream;
 
 //Header Struct
 typedef struct{
-    unsigned int ID: 16; /*A 16 bit identifier assigned by the program that generates any kind of query*/
-    unsigned char QR: 1; /*A one bit field that specifies whether this message is a query (0), or a response (1).*/
-    unsigned char OPCODE: 4; /*A four bit field that specifies kind of query in this message*/
-    unsigned char AA: 1; /*Authoritative Answer - this bit is only meaningful in responses, and specifies that the responding
-                         name server is an authority for the domain name in question section.*/
-    unsigned char TC: 1; /*specifies that this message was truncated*/
-    unsigned char RD: 1; /* this bit directs the name server to pursue the query recursively*/
-    unsigned char RA: 1; /*this be is set or cleared in a response, and denotes whether recursive
+    unsigned short id; /*A 16 bit identifier assigned by the program that generates any kind of query*/
+    unsigned char rd: 1; /* this bit directs the name server to pursue the query recursively*/
+    unsigned char tc: 1; /*specifies that this message was truncated*/
+    unsigned char aa: 1; /*Authoritative Answer - this bit is only meaningful in responses, and specifies that the responding
+                          name server is an authority for the domain name in question section.*/
+    unsigned char opcode: 4; /*A four bit field that specifies kind of query in this message*/
+    unsigned char qr: 1; /*A one bit field that specifies whether this message is a query (0), or a response (1).*/
+    unsigned char rcode: 4; /*Response code - this 4 bit field is set as part of responses*/
+    unsigned char z: 3; /*Reserved for future use.*/
+    unsigned char ra: 1; /*this be is set or cleared in a response, and denotes whether recursive
                          query support is available in the name server*/
-    unsigned char Z: 3; /*Reserved for future use.*/
-    unsigned char RCODE: 4; /*Response code - this 4 bit field is set as part of responses*/
-    unsigned int QDCOUNT: 16; /*an unsigned 16 bit integer specifying the number of entries in the question section*/
-    unsigned int ANCOUNT: 16; /*an unsigned 16 bit integer specifying the number of resource records in the answer section*/
-    unsigned int NSCOUNT: 16; /*an unsigned 16 bit integer specifying the number of name server resource records in the
+    unsigned short qbcount: 16; /*an unsigned 16 bit integer specifying the number of entries in the question section*/
+    unsigned short ancount: 16; /*an unsigned 16 bit integer specifying the number of resource records in the answer section*/
+    unsigned short nscount: 16; /*an unsigned 16 bit integer specifying the number of name server resource records in the
                                authority records section*/
-    unsigned int ARCOUNT: 16; /*an unsigned 16 bit integer specifying the number of resource records in the additional
+    unsigned short arcount: 16; /*an unsigned 16 bit integer specifying the number of resource records in the additional
                                records section*/
 } Header;
 
@@ -382,19 +382,19 @@ int clientSetup(const char * server_IP, const char * port, struct sockaddr_in & 
  */
 void populateDNSHeader(Header * header){
     cout << "Debug process id: " << getpid() << endl;
-    header->ID = htons(getpid());
-    header->QR = 1;
-    header->OPCODE = 0;
-    header->AA = 0;
-    header->TC = 0;
-    header->RD = 0;
-    header->RA = 0;
-    header->Z = 0;
-    header->RCODE = 0;
-    header->QDCOUNT = htons(1); // one question
-    header->ANCOUNT = 0;
-    header->NSCOUNT = 0;
-    header->ARCOUNT = 0;
+    header->id = htons(getpid());
+    header->qr = 0;
+    header->opcode = 0;
+    header->aa = 0;
+    header->tc = 0;
+    header->rd = 1;
+    header->ra = 0;
+    header->z = 0;
+    header->rcode = 0;
+    header->qbcount = htons(1); // one question
+    header->ancount = 0;
+    header->nscount = 0;
+    header->arcount = 0;
 }
 
 void populateQuestionPacket(Question * question, int queryType){
