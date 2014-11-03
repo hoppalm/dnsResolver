@@ -48,7 +48,7 @@ using std::istringstream;
 
 //Header Struct
 typedef struct{
-    unsigned short id; /*A 16 bit identifier assigned by the program that generates any kind of query*/
+    unsigned int id : 16; /*A 16 bit identifier assigned by the program that generates any kind of query*/
     unsigned char rd: 1; /* this bit directs the name server to pursue the query recursively*/
     unsigned char tc: 1; /*specifies that this message was truncated*/
     unsigned char aa: 1; /*Authoritative Answer - this bit is only meaningful in responses, and specifies that the responding
@@ -59,11 +59,11 @@ typedef struct{
     unsigned char z: 3; /*Reserved for future use.*/
     unsigned char ra: 1; /*this be is set or cleared in a response, and denotes whether recursive
                          query support is available in the name server*/
-    unsigned short qbcount: 16; /*an unsigned 16 bit integer specifying the number of entries in the question section*/
-    unsigned short ancount: 16; /*an unsigned 16 bit integer specifying the number of resource records in the answer section*/
-    unsigned short nscount: 16; /*an unsigned 16 bit integer specifying the number of name server resource records in the
+    unsigned int qbcount: 16; /*an unsigned 16 bit integer specifying the number of entries in the question section*/
+    unsigned int ancount: 16; /*an unsigned 16 bit integer specifying the number of resource records in the answer section*/
+    unsigned int nscount: 16; /*an unsigned 16 bit integer specifying the number of name server resource records in the
                                authority records section*/
-    unsigned short arcount: 16; /*an unsigned 16 bit integer specifying the number of resource records in the additional
+    unsigned int arcount: 16; /*an unsigned 16 bit integer specifying the number of resource records in the additional
                                records section*/
 } Header;
 
@@ -134,7 +134,7 @@ void populateDNSHeader(Header * header){
     header->opcode = 0;
     header->aa = 0;
     header->tc = 0;
-    header->rd = 1;
+    header->rd = 0;
     header->ra = 0;
     header->z = 0;
     header->rcode = 0;
@@ -233,11 +233,51 @@ void sendRecieveDNSQuery(Header header, Question question, string DNSUrl, int so
         exit(1);
     }
     cout << "Debug: Receiving Packet" << endl;
+    
+    Header * responseHeader = (Header *)buffer;
+    
+    cout << "Debug: returned id in header" << ntohs(responseHeader->id) << endl;
+    
+    //truncated error out
+    if (responseHeader->tc == 1) {
+        cerr << "Error truncated bit was set in response header" << endl;
+        exit(1);
+    }
+    char rcode = responseHeader->rcode;
+    //error condition. TODO: Handle each one appropriately
+    if (rcode == 2 && rcode == 4 && rcode == 5){
+        //TODO HANDLE go to next server
+        //Server failure - The name server was unable to process this query due to a problem with the nameserver.
+        //Not Implemented - The name server does not support the requested kind of query.
+        //Refused - The name server refuses to perform the specified operation for policy reasons.
+    }
+    else if(rcode == 3){
+        cerr << "Domain name does not exist, quitting" << endl;
+        exit(1);
+    }
+    
 }
 
-
+//unsigned int id : 16; /*A 16 bit identifier assigned by the program that generates any kind of query*/
+//unsigned char rd: 1; /* this bit directs the name server to pursue the query recursively*/
+///unsigned char tc: 1; /*specifies that this message was truncated*/
+//unsigned char aa: 1; /*Authoritative Answer - this bit is only meaningful in responses, and specifies that the responding
+  //                    name server is an authority for the domain name in question section.*/
+//unsigned char opcode: 4; /*A four bit field that specifies kind of query in this message*/
+//unsigned char qr: 1; /*A one bit field that specifies whether this message is a query (0), or a response (1).*/
+//unsigned char rcode: 4; /*Response code - this 4 bit field is set as part of responses*/
+//unsigned char z: 3; /*Reserved for future use.*/
+//unsigned char ra: 1; /*this be is set or cleared in a response, and denotes whether recursive
+    //                  query support is available in the name server*/
+//unsigned int qbcount: 16; /*an unsigned 16 bit integer specifying the number of entries in the question section*/
+//unsigned int ancount: 16; /*an unsigned 16 bit integer specifying the number of resource records in the answer section*/
+//unsigned int nscount: 16; /*an unsigned 16 bit integer specifying the number of name server resource records in the
+  //                         authority records section*/
+//unsigned int arcount: 16; /*an unsigned 16 bit integer specifying the number of resource records in the additional
+      //                     records section*/
 
 void DNSResolver(string URL, int queryType, vector<string> &rootServers){
+    
     int currentServerID = 0;
     
     Header header;
@@ -256,7 +296,6 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
     
     sendRecieveDNSQuery(header, question, DNSName, dnsSocket, serverAddress);
     
-
 }
 
 /*
