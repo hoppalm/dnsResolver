@@ -49,16 +49,16 @@ using std::istringstream;
 //Header Struct
 typedef struct{
     unsigned int ID: 16; /*A 16 bit identifier assigned by the program that generates any kind of query*/
-    unsigned int QR: 1; /*A one bit field that specifies whether this message is a query (0), or a response (1).*/
-    unsigned int OPCODE: 4; /*A four bit field that specifies kind of query in this message*/
-    unsigned int AA: 1; /*Authoritative Answer - this bit is only meaningful in responses, and specifies that the responding
+    unsigned char QR: 1; /*A one bit field that specifies whether this message is a query (0), or a response (1).*/
+    unsigned char OPCODE: 4; /*A four bit field that specifies kind of query in this message*/
+    unsigned char AA: 1; /*Authoritative Answer - this bit is only meaningful in responses, and specifies that the responding
                          name server is an authority for the domain name in question section.*/
-    unsigned int TC: 1; /*specifies that this message was truncated*/
-    unsigned int RD: 1; /* this bit directs the name server to pursue the query recursively*/
-    unsigned int RA: 1; /*this be is set or cleared in a response, and denotes whether recursive
+    unsigned char TC: 1; /*specifies that this message was truncated*/
+    unsigned char RD: 1; /* this bit directs the name server to pursue the query recursively*/
+    unsigned char RA: 1; /*this be is set or cleared in a response, and denotes whether recursive
                          query support is available in the name server*/
-    unsigned int Z: 3; /*Reserved for future use.*/
-    unsigned int RCODE: 4; /*Response code - this 4 bit field is set as part of responses*/
+    unsigned char Z: 3; /*Reserved for future use.*/
+    unsigned char RCODE: 4; /*Response code - this 4 bit field is set as part of responses*/
     unsigned int QDCOUNT: 16; /*an unsigned 16 bit integer specifying the number of entries in the question section*/
     unsigned int ANCOUNT: 16; /*an unsigned 16 bit integer specifying the number of resource records in the answer section*/
     unsigned int NSCOUNT: 16; /*an unsigned 16 bit integer specifying the number of name server resource records in the
@@ -370,8 +370,8 @@ int clientSetup(const char * server_IP, const char * port, struct sockaddr_in & 
     }
     memset(&serverAddress, 0, sizeof(serverAddress));
     serverAddress.sin_family = AF_INET;
-    serverAddress.sin_addr.s_addr= *server_IP;
-    serverAddress.sin_port=htons(*port);
+    serverAddress.sin_addr.s_addr= inet_addr(server_IP);
+    serverAddress.sin_port=htons(53);
     
     return clientSocket;
     
@@ -383,11 +383,11 @@ int clientSetup(const char * server_IP, const char * port, struct sockaddr_in & 
 void populateDNSHeader(Header * header){
     cout << "Debug process id: " << getpid() << endl;
     header->ID = htons(getpid());
-    header->QR = 0;
+    header->QR = 1;
     header->OPCODE = 0;
     header->AA = 0;
     header->TC = 0;
-    header->RD = 1;
+    header->RD = 0;
     header->RA = 0;
     header->Z = 0;
     header->RCODE = 0;
@@ -468,6 +468,7 @@ void sendRecieveDNSQuery(Header header, Question question, string DNSUrl, int so
     cout << "DEBUG size of header " << sizeof(Header) << endl;
     cout << "DEBUG size of question " << sizeof(Question) << endl;
     cout << "DEBUG size of name " << strlen(queryName) << endl;
+    cout <<queryName << endl;
     
     memcpy(buffer, &header, sizeof(Header));
     memcpy(buffer+sizeof(Header), queryName, strlen(queryName));
@@ -510,7 +511,7 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
     string DNSName = convertNameToDNS(URL);
     cout << "Debug host name : " << DNSName << endl;
     
-    sendRecieveDNSQuery(header, question, DNSName, dnsSocket, serverAddress);
+    sendRecieveDNSQuery(header, question, URL, dnsSocket, serverAddress);
     
 
 }

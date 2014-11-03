@@ -13,7 +13,7 @@ int main(int argc, char* argv[]) {
     
 	string URL = "";
 	string recordType = "";
-    int recordID = 0;
+    int recordID = 1;
 
 	if (argc < 2) {
 		cerr << "ERROR: too few arguments" << endl;
