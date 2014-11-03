@@ -75,10 +75,10 @@ typedef struct{
 } Question;
 
 typedef struct{
-    unsigned int TYPE: 16;
-    unsigned int CLASS: 16;
-    unsigned int TTL: 32;
-    unsigned int RDLENGTH: 16;
+    short TYPE: 16;
+    short CLASS: 16;
+    int TTL;
+    short RDLENGTH: 16;
 } Response;
 
 //This project
@@ -92,6 +92,7 @@ void sendRecieveDNSQuery(Header* header, Question * question, string DNSUrl, int
 void DNSResolver(string URL, int queryType, vector<string> &rootServers);
 string getName(char * position, int offset);
 int getCompressionInformation(char * currentPosition);
+string getRData(int length, char * startingPoint);
 
 /*
  * populates the root server vectors
@@ -289,21 +290,30 @@ void sendRecieveDNSQuery(Header header, Question question, string DNSUrl, int so
     int numberOfAuthorities = ntohs(responseHeader->nscount);
     
     //loop through authorities "dont need to process anything"
-    /*
+    
     for(int i = 0; i < numberOfAuthorities; i++){
         int offset = getCompressionInformation(currentPosition);
         currentPosition +=2;
-        cout << "Debug offset " << offset << endl;
         string name = getName(offsetPosition, offset);
+        Response * response = (Response *)currentPosition;
+        currentPosition = currentPosition + sizeof(Response);
+        cout << "------------------------------------" << endl;
+        cout << "Name: " << name << endl;
+        cout << "Type: " << ntohs(response->TYPE) << endl;
+        cout << "CLASS: " << ntohs(response->CLASS) << endl;
+        cout << "TTL: " << ntohs(response->TTL) << endl; //giving me wrong answers
+        cout << "RDLENGTH: " << ntohs(response->RDLENGTH) << endl;
+     
+        int length =ntohs(response->RDLENGTH);
+        string rData = getRData(length, currentPosition);
+        currentPosition = currentPosition + length;
+        cout << "Rdata: " << rData << endl;
+        cout << "------------------------------------" << endl;
     }
-    */
     
-    int offset = getCompressionInformation(currentPosition);
-    currentPosition +=2;
-    string name = getName(offsetPosition, offset);
     
-    int numberOfAdditional = ntohs(responseHeader->nscount);
     
+    int numberOfAdditional = ntohs(responseHeader->arcount);
     /*
     //loop through additionals store ips
     for(int i = 0; i < numberOfAdditional; i++){
@@ -317,6 +327,13 @@ void sendRecieveDNSQuery(Header header, Question question, string DNSUrl, int so
     //print out answers
     
 }
+/*
+typedef struct{
+    unsigned int TYPE: 16;
+    unsigned int CLASS: 16;
+    unsigned int TTL: 32;
+    unsigned int RDLENGTH: 16;
+} Response;*/
 
 //get offset number for the compression
 int getCompressionInformation(char * currentPosition){
@@ -386,6 +403,10 @@ string getName(char * position, int offset){
     }
     //cout << "Debug: Name returned " << name << endl;
     return name;
+}
+
+string getRData(int length, char * startingPoint){
+    return "";
 }
 
 void DNSResolver(string URL, int queryType, vector<string> &rootServers){
