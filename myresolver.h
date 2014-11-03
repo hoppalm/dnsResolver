@@ -68,7 +68,6 @@ typedef struct{
 } Header;
 
 typedef struct{
-    const char * QNAME;
     unsigned int QTYPE: 16;
     unsigned int QCLASS: 16;
 } Question;
@@ -99,10 +98,10 @@ string recvURL(int socket);
 void myresolver(string URL, string recordType);
 void populateRootServers(vector<string> &IPv4RootServers, vector<string> &IPv6RootServers);
 void populateDNSHeader();
-void populateQuestionPacket(Question * question, string URL, int queryType);
+void populateQuestionPacket(Question * question, int queryType);
 string convertNameToDNS(string URL);
 string convertIntToString (int number);
-void sendDNSQuery(Header* header, Question * question);
+void sendRecieveDNSQuery(Header* header, Question * question, string DNSUrl, int socket, struct sockaddr_in serverAddress);
 void DNSResolver(string URL, int queryType, vector<string> &rootServers);
 
 
@@ -325,166 +324,57 @@ int serverAcceptNewConnection(int sock) {
  */
 int clientCreateSocketAndConnect(const string& server_IP, const string& port) {
 
-	int rv, sock;
-	struct addrinfo hints, *server_info, *p;
-	memset(&hints, 0, sizeof hints);
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_DGRAM;
-	if ((rv = getaddrinfo(server_IP.c_str(), port.c_str(), &hints,
-			&server_info)) != 0) {
-		cerr << "getaddrinfo: " << gai_strerror(rv) << endl;
-		exit(1);
-	}
-	//cout << "Connecting to server..." << endl;
-	for (p = server_info; p != NULL; p = p->ai_next) {
-		if ((sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol))
-				== -1) {
-			cerr << "client: create socket failed" << endl;
-			continue;
-		}
-
-		if (connect(sock, p->ai_addr, p->ai_addrlen) == -1) {
-			close(sock);
-			cerr << "client: connect failed" << endl;
-			continue;
-		}
-
-		break;
-	}
-	if (p == NULL) {
-		cerr << "client: failed to connect" << endl;
-		exit(2);
-	}
-	freeaddrinfo(server_info);
-	return sock;
-}
-
-
-/*
- *Primary function for ss
-
-void steppingStone(const string &port) {
-
-	string hostIP = getHostIP();
-	int serverSocket = serverCreateSocketBindAndListen(port);
-	int serverPort = getPortFromSocket(serverSocket);
-	int newSocket;
-
-	cout << "ss " << hostIP << " " << serverPort << ":" << endl;
-
-	while (true) {
-		newSocket = serverAcceptNewConnection(serverSocket);
-		pthread_t newThread;
-		if (pthread_create(&newThread, NULL, handleNewConnection, &newSocket)) {
-			cerr << "ERROR: unable to create thread" << endl;
-			exit(1);
-		}
-	}
-}
- */
-
-/*
- * Send a string to a socket
- * (to be used in sendURL and sendChainfile)
- */
-void sendString(const string &s, int socket) {
-	const char * data = s.c_str();
-	int lengthOfString = strlen(data);
-	sendAll(data, &lengthOfString, socket);
-}
-
-
-/*
- * Make sure that all of the data is being sent across the wire
- */
-int sendAll(const char * data, int * lengthOfString, int socket) {
-	int totalBytesSent = 0;
-	int bytesRemaining = *lengthOfString;
-	int numberOfBytesSent;
-
-	//send length of string first
-	int length = htons(*lengthOfString);
-	if (send(socket, &length, sizeof(length), 0) < 0) {
-		cerr << "Debug: Error sending string length" << endl;
-		return -1;
-	}
-
-	//continue to send data until all of it has been sent or it errors out
-	while( totalBytesSent < *lengthOfString) {
-		numberOfBytesSent = send(socket, data + totalBytesSent, bytesRemaining, 0);
-		if (numberOfBytesSent == -1) {
-			cerr << "Debug: Error sending data" << endl;
-			break;
-		}
-		totalBytesSent = numberOfBytesSent + totalBytesSent;
-		bytesRemaining = bytesRemaining - numberOfBytesSent;
-	}
-
-	if (*lengthOfString != totalBytesSent) {
-		cerr << "Debug: Not all data bytes sent" << endl;
-	}
-
-	//returns -1 when if it failed within loop
-	return numberOfBytesSent;
+    int rv, sock;
+    struct addrinfo hints, *server_info, *p;
+    memset(&hints, 0, sizeof hints);
+    hints.ai_family = AF_UNSPEC;
+    hints.ai_socktype = SOCK_STREAM;
+    if ((rv = getaddrinfo(server_IP.c_str(), port.c_str(), &hints,
+                          &server_info)) != 0) {
+        cerr << "getaddrinfo: " << gai_strerror(rv) << endl;
+        exit(1);
+    }
+    //cout << "Connecting to server..." << endl;
+    for (p = server_info; p != NULL; p = p->ai_next) {
+        if ((sock = socket(p->ai_family, p->ai_socktype, p->ai_protocol))
+            == -1) {
+            cerr << "client: create socket failed" << endl;
+            continue;
+        }
+        
+        if (connect(sock, p->ai_addr, p->ai_addrlen) == -1) {
+            close(sock);
+            cerr << "client: connect failed" << endl;
+            continue;
+        }
+        
+        break;
+    }
+    if (p == NULL) {
+        cerr << "client: failed to connect" << endl;
+        exit(2);
+    }
+    freeaddrinfo(server_info);
+    return sock;
 }
 
 /*
- * Make sure that all of the data is being received from the wire
+ * UDP create a client socket and connect to a server at the given IP and port number.
  */
-string recvAll(int socket) {
-	int sizeOfRecvString;
-	if (recv(socket,&sizeOfRecvString, sizeof(int), 0) < 0) {
-		cerr << "Debug: Error recieving string length" << endl;
-	}
-	sizeOfRecvString = ntohs(sizeOfRecvString);
-
-	char data[sizeOfRecvString+1];
-	int totalBytesRecv = 0;
-	int bytesRemaining = sizeOfRecvString;
-	int numberOfBytesRecv;
-
-	while (totalBytesRecv < sizeOfRecvString) {
-		numberOfBytesRecv = recv(socket, data+totalBytesRecv, bytesRemaining, 0);
-		if (numberOfBytesRecv == -1) {
-			cerr << "Debug: Error receiving data" << endl;
-			break;
-		}
-		totalBytesRecv = numberOfBytesRecv + totalBytesRecv;
-		bytesRemaining = bytesRemaining - numberOfBytesRecv;
-	}
-
-	if (sizeOfRecvString != totalBytesRecv) {
-		cerr << "Debug: Not all data bytes received" << endl;
-	}
-
-	data[sizeOfRecvString] = '\0';
-	//cout << "Debug: size of string: " << sizeOfRecvString << endl;
-	//cout << "Debug: string received: " << data << endl;
-
-	string returnString = data;
-	return returnString;
-}
-
-/*
- * Receive a string from a socket and return it
- * (to be used in recvURL and recvChainfile
- */
-string recvString(int socket) {
-	return recvAll(socket);
-}
-
-/*
- * Send a URL string to a socket
- */
-void sendURL(const string &URL, int socket) {
-	sendString(URL, socket);
-}
-
-/*
- * Receive a URL string from a socket and return it
- */
-string recvURL(int socket) {
-	return recvAll(socket);
+int clientSetup(const char * server_IP, const char * port, struct sockaddr_in & serverAddress){
+    int clientSocket;
+    
+    if ( (clientSocket=socket(AF_INET,SOCK_DGRAM,0)) < 0){
+        cout << "ERROR creating client socket" << endl;
+        exit(1);
+    }
+    memset(&serverAddress, 0, sizeof(serverAddress));
+    serverAddress.sin_family = AF_INET;
+    serverAddress.sin_addr.s_addr= *server_IP;
+    serverAddress.sin_port=htons(*port);
+    
+    return clientSocket;
+    
 }
 
 /*
@@ -507,10 +397,9 @@ void populateDNSHeader(Header * header){
     header->ARCOUNT = 0;
 }
 
-void populateQuestionPacket(Question * question, string URL, int queryType){
-    string DNSName = convertNameToDNS(URL);
-    const char * dnsURL = DNSName.c_str();
-    cout << "Debug host name : " << DNSName << endl;
+void populateQuestionPacket(Question * question, int queryType){
+    question->QTYPE = htons(queryType);
+    question->QCLASS = htons(1);
 }
 
 
@@ -518,6 +407,13 @@ string convertNameToDNS(string URL){
     
     vector<int> indexes;
     string DNSName;
+    
+    if (URL.substr(0, 7) == "http://") {
+        URL = URL.substr(7);
+    }
+    else if (DNSName.substr(0, 8) == "https://") {
+        URL = URL.substr(8);
+    }
     
     int index = URL.find(".");
     
@@ -565,29 +461,58 @@ string convertIntToString (int number)
     return tempString.str();
 }
 
-void sendDNSQuery(Header* header, Question * question){
+void sendRecieveDNSQuery(Header header, Question question, string DNSUrl, int socket, struct sockaddr_in serverAddress){
+    unsigned int sizeOfStruct = sizeof(serverAddress);
+    char buffer [65536];
+    const char * queryName = DNSUrl.c_str();
+    cout << "DEBUG size of header " << sizeof(Header) << endl;
+    cout << "DEBUG size of question " << sizeof(Question) << endl;
+    cout << "DEBUG size of name " << strlen(queryName) << endl;
     
+    memcpy(buffer, &header, sizeof(Header));
+    memcpy(buffer+sizeof(Header), queryName, strlen(queryName));
+    memcpy(buffer+sizeof(Header)+strlen(queryName), &question, sizeof(Question));
+    
+    cout << "Debug: sending Packet" << endl;
+    if( sendto(socket,(char*)buffer,sizeof(Header) + strlen(queryName) + sizeof(Question),0,(struct sockaddr*)&serverAddress,sizeOfStruct) < 0)
+    {
+        cout << "Debug: sending query failed" << endl;
+        exit(1);
+    }
+    cout << "send complete" << endl;
+    
+    
+    cout << "Debug: Receiving Packet" << endl;
+    if(recvfrom (socket,(char*)buffer,65536,0,(struct sockaddr*)&serverAddress,&sizeOfStruct) < 0)
+    {
+        cout << "Debug: receive query failed" << endl;
+        exit(1);
+    }
+    cout << "Debug: Receiving Packet" << endl;
 }
 
+
+
 void DNSResolver(string URL, int queryType, vector<string> &rootServers){
-    
-    /*string port = "0";
-    string hostIP = getHostIP();
-    int serverSocket = serverCreateSocketBindAndListen(port);
-    int serverPort = getPortFromSocket(serverSocket);
-    cout << "listening on " << hostIP << " " << serverPort << ":" << endl;*/
     int currentServerID = 0;
     
     Header header;
+    Question question;
     populateDNSHeader(&header);
     
     string currentIP = rootServers.at(currentServerID);
     
-    int dnsSocket = clientCreateSocketAndConnect(currentIP, "53");
+    struct sockaddr_in serverAddress;
+    int dnsSocket = clientSetup(currentIP.c_str(), "53", serverAddress);
     
-    Question question;
+    populateQuestionPacket(&question, queryType);
     
-    populateQuestionPacket(&question, URL, queryType);
+    string DNSName = convertNameToDNS(URL);
+    cout << "Debug host name : " << DNSName << endl;
+    
+    sendRecieveDNSQuery(header, question, DNSName, dnsSocket, serverAddress);
+    
+
 }
 
 
@@ -618,11 +543,134 @@ void myresolver(string URL, int recordType){
     else {
         DNSResolver(URL, recordType, IPv6RootServers);
     }
-    
-    
-    
 }
 
 
+/*
+ *Primary function for ss
+ 
+ void steppingStone(const string &port) {
+ 
+	string hostIP = getHostIP();
+	int serverSocket = serverCreateSocketBindAndListen(port);
+	int serverPort = getPortFromSocket(serverSocket);
+	int newSocket;
+ 
+	cout << "ss " << hostIP << " " << serverPort << ":" << endl;
+ 
+	while (true) {
+ newSocket = serverAcceptNewConnection(serverSocket);
+ pthread_t newThread;
+ if (pthread_create(&newThread, NULL, handleNewConnection, &newSocket)) {
+ cerr << "ERROR: unable to create thread" << endl;
+ exit(1);
+ }
+	}
+ }
+ */
+
+/*
+ * Send a string to a socket
+ * (to be used in sendURL and sendChainfile)
+ */
+void sendString(const string &s, int socket) {
+    const char * data = s.c_str();
+    int lengthOfString = strlen(data);
+    sendAll(data, &lengthOfString, socket);
+}
+
+
+/*
+ * Make sure that all of the data is being sent across the wire
+ */
+int sendAll(const char * data, int * lengthOfString, int socket) {
+    int totalBytesSent = 0;
+    int bytesRemaining = *lengthOfString;
+    int numberOfBytesSent;
+    
+    //send length of string first
+    int length = htons(*lengthOfString);
+    if (send(socket, &length, sizeof(length), 0) < 0) {
+        cerr << "Debug: Error sending string length" << endl;
+        return -1;
+    }
+    
+    //continue to send data until all of it has been sent or it errors out
+    while( totalBytesSent < *lengthOfString) {
+        numberOfBytesSent = send(socket, data + totalBytesSent, bytesRemaining, 0);
+        if (numberOfBytesSent == -1) {
+            cerr << "Debug: Error sending data" << endl;
+            break;
+        }
+        totalBytesSent = numberOfBytesSent + totalBytesSent;
+        bytesRemaining = bytesRemaining - numberOfBytesSent;
+    }
+    
+    if (*lengthOfString != totalBytesSent) {
+        cerr << "Debug: Not all data bytes sent" << endl;
+    }
+    
+    //returns -1 when if it failed within loop
+    return numberOfBytesSent;
+}
+
+/*
+ * Make sure that all of the data is being received from the wire
+ */
+string recvAll(int socket) {
+    int sizeOfRecvString;
+    if (recv(socket,&sizeOfRecvString, sizeof(int), 0) < 0) {
+        cerr << "Debug: Error recieving string length" << endl;
+    }
+    sizeOfRecvString = ntohs(sizeOfRecvString);
+    
+    char data[sizeOfRecvString+1];
+    int totalBytesRecv = 0;
+    int bytesRemaining = sizeOfRecvString;
+    int numberOfBytesRecv;
+    
+    while (totalBytesRecv < sizeOfRecvString) {
+        numberOfBytesRecv = recv(socket, data+totalBytesRecv, bytesRemaining, 0);
+        if (numberOfBytesRecv == -1) {
+            cerr << "Debug: Error receiving data" << endl;
+            break;
+        }
+        totalBytesRecv = numberOfBytesRecv + totalBytesRecv;
+        bytesRemaining = bytesRemaining - numberOfBytesRecv;
+    }
+    
+    if (sizeOfRecvString != totalBytesRecv) {
+        cerr << "Debug: Not all data bytes received" << endl;
+    }
+    
+    data[sizeOfRecvString] = '\0';
+    //cout << "Debug: size of string: " << sizeOfRecvString << endl;
+    //cout << "Debug: string received: " << data << endl;
+    
+    string returnString = data;
+    return returnString;
+}
+
+/*
+ * Receive a string from a socket and return it
+ * (to be used in recvURL and recvChainfile
+ */
+string recvString(int socket) {
+    return recvAll(socket);
+}
+
+/*
+ * Send a URL string to a socket
+ */
+void sendURL(const string &URL, int socket) {
+    sendString(URL, socket);
+}
+
+/*
+ * Receive a URL string from a socket and return it
+ */
+string recvURL(int socket) {
+    return recvAll(socket);
+}
 
 #endif /* MYRESOLVER_H_ */
