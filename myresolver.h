@@ -307,12 +307,29 @@ void sendRecieveDNSQuery(Header header, Question question, string DNSUrl, int so
     
     bitset<8> bytes1 (asciiNumbers[0]);
     
-    cout << bytes1 << endl;
+    cout << "Debug first 8 bytes for offset " << bytes1 << endl;
     
-    bitset<8> bytes2 (asciiNumbers[1] );
+    bitset<8> bytes2 (asciiNumbers[1]);
     
-    cout << bytes2 << endl;
+    cout << "Debug last 8 bytes for offset "<< bytes2 << endl;
     
+    bitset<16> comparebytes(string("0011111111111111"));
+    
+    for (int i = 0; i < 15; i++){
+        if (i > 7){
+            comparebytes[i] = comparebytes[i] & bytes1[i-8];
+        }
+        else {
+            comparebytes[i] = comparebytes[i] & bytes2[i];
+        }
+    }
+    
+    
+    cout << "Debug all 16 bytes for offset " << comparebytes << endl;
+    
+    int offset = comparebytes.to_ulong();
+    
+    cout << "Debug offset " << offset << endl;
     int i;
     
     int numberOfAnswers = ntohs(responseHeader->ancount);
