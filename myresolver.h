@@ -81,16 +81,6 @@ typedef struct{
     unsigned int RDLENGTH: 16;
 } Response;
 
-typedef struct{
-    char * NAME;
-    char * RDATA;
-} ResponseData;
-
-typedef struct{
-    unsigned char compression : 2;
-    unsigned int offset : 14;
-} CompressionData;
-
 //This project
 int clientSetup(const char * server_IP, const char * port, struct sockaddr_in & serverAddress);
 void myresolver(string URL, string recordType);
@@ -148,7 +138,6 @@ int clientSetup(const char * server_IP, const char * port, struct sockaddr_in & 
  * Populating DNS Header Packet
  */
 void populateDNSHeader(Header * header){
-    cout << "Debug process id: " << getpid() << endl;
     header->id = htons(getpid());
     header->qr = 0;
     header->opcode = 0;
@@ -197,7 +186,7 @@ string convertNameToDNS(string URL){
         exit(1);
     }
     temp = indexes.at(position);
-    cout << "Debug: appending: " << temp << " for " << indexes.at(position) << endl;
+    //cout << "Debug: appending: " << temp << " for " << indexes.at(position) << endl;
     DNSName.append(1,temp);
     position++;
     for (int i = 0; i< URL.length();i++) {
@@ -212,7 +201,7 @@ string convertNameToDNS(string URL){
                 position++;
             }
             temp = number-1;
-            cout << "Debug: appending: " << temp << " for " << (number-1) << endl;
+            //cout << "Debug: appending: " << temp << " for " << (number-1) << endl;
             DNSName.append(1,temp);
         }
         else {
@@ -227,7 +216,8 @@ string convertNameToDNS(string URL){
 void sendRecieveDNSQuery(Header header, Question question, string DNSUrl, int socket, struct sockaddr_in serverAddress){
     //store the answers
     vector<Response> answersStruct;
-    vector<ResponseData> answers;
+    vector<string> answerNames;
+    vector<string> answerRData;
     vector<string> nextIPs;
     char * currentPosition;
     char * offsetPosition;
@@ -235,9 +225,6 @@ void sendRecieveDNSQuery(Header header, Question question, string DNSUrl, int so
     unsigned int sizeOfStruct = sizeof(serverAddress);
     char buffer [65536];
     const char * queryName = DNSUrl.c_str();
-    cout << "DEBUG size of header " << sizeof(Header) << endl;
-    cout << "DEBUG size of question " << sizeof(Question) << endl;
-    cout << "DEBUG size of name " << strlen(queryName)+1 << endl;
     
     memcpy(buffer, &header, sizeof(Header));
     memcpy(buffer+sizeof(Header), queryName, strlen(queryName)+1);
@@ -261,11 +248,9 @@ void sendRecieveDNSQuery(Header header, Question question, string DNSUrl, int so
         exit(1);
     }
     
-    cout << "Debug: Receiving Packet" << endl;
+    cout << "Debug: Received Packet" << endl;
     
     Header * responseHeader = (Header *)buffer;
-    
-    cout << "Debug: returned id in header" << ntohs(responseHeader->id) << endl;
     
     //truncated error out
     if (responseHeader->tc == 1) {
@@ -290,7 +275,6 @@ void sendRecieveDNSQuery(Header header, Question question, string DNSUrl, int so
     offsetPosition = &buffer[0];
     
     int numberOfAnswers = ntohs(responseHeader->ancount);
-    cout << "Debug: number of Answers " << numberOfAnswers << endl;
     
     //loop though answers store in the answers vectors
     /*
@@ -303,7 +287,6 @@ void sendRecieveDNSQuery(Header header, Question question, string DNSUrl, int so
     }*/
     
     int numberOfAuthorities = ntohs(responseHeader->nscount);
-    cout << "Debug: number of Authorities " << numberOfAuthorities << endl;
     
     //loop through authorities "dont need to process anything"
     /*
@@ -317,13 +300,9 @@ void sendRecieveDNSQuery(Header header, Question question, string DNSUrl, int so
     
     int offset = getCompressionInformation(currentPosition);
     currentPosition +=2;
-    cout << "Debug offset " << offset << endl;
     string name = getName(offsetPosition, offset);
-    cout << "Debug Name: " << name << endl;
     
     int numberOfAdditional = ntohs(responseHeader->nscount);
-    cout << "Debug: number of additionals " << numberOfAdditional << endl;
-   
     
     /*
     //loop through additionals store ips
@@ -354,11 +333,11 @@ int getCompressionInformation(char * currentPosition){
     
     bitset<8> bytes1 (asciiNumbers[0]);
     
-    cout << "Debug first 8 bytes for offset " << bytes1 << endl;
+    //cout << "Debug first 8 bytes for offset " << bytes1 << endl;
     
     bitset<8> bytes2 (asciiNumbers[1]);
     
-    cout << "Debug last 8 bytes for offset "<< bytes2 << endl;
+    //cout << "Debug last 8 bytes for offset "<< bytes2 << endl;
     
     bitset<16> comparebytes(string("0011111111111111"));
     
@@ -370,9 +349,7 @@ int getCompressionInformation(char * currentPosition){
             comparebytes[i] = comparebytes[i] & bytes2[i];
         }
     }
-    
-    
-    cout << "Debug all 16 bytes for offset " << comparebytes << endl;
+    //cout << "Debug all 16 bytes for offset " << comparebytes << endl;
     
     int offset = comparebytes.to_ulong();
     
@@ -388,7 +365,7 @@ string getName(char * position, int offset){
     temp = (unsigned char *) position;
     
     int numberOfBytesToAdvance = (int)*temp;
-    cout << "Debug: Number of bytes to advance " << numberOfBytesToAdvance << endl;
+    //cout << "Debug: Number of bytes to advance " << numberOfBytesToAdvance << endl;
     position = position + 1;
     
     while (numberOfBytesToAdvance != 0){
@@ -404,9 +381,10 @@ string getName(char * position, int offset){
         temp = (unsigned char *) position;
         
         numberOfBytesToAdvance = (int)*temp;
-        cout << "Debug: Number of bytes to advance " << numberOfBytesToAdvance << endl;
+        //cout << "Debug: Number of bytes to advance " << numberOfBytesToAdvance << endl;
         position = position + 1;
     }
+    //cout << "Debug: Name returned " << name << endl;
     return name;
 }
 
@@ -426,7 +404,7 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
     populateQuestionPacket(&question, queryType);
     
     string DNSName = convertNameToDNS(URL);
-    cout << "Debug host name : " << DNSName << endl;
+    //cout << "Debug host name : " << DNSName << endl;
     
     sendRecieveDNSQuery(header, question, DNSName, dnsSocket, serverAddress);
     
