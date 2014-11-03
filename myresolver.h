@@ -511,7 +511,7 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
     string DNSName = convertNameToDNS(URL);
     cout << "Debug host name : " << DNSName << endl;
     
-    sendRecieveDNSQuery(header, question, URL, dnsSocket, serverAddress);
+    sendRecieveDNSQuery(header, question, DNSName, dnsSocket, serverAddress);
     
 
 }
