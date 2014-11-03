@@ -399,6 +399,7 @@ string convertNameToDNS(string URL){
     
     vector<int> indexes;
     string DNSName;
+    char temp;
     
     if (URL.substr(0, 7) == "http://") {
         URL = URL.substr(7);
@@ -420,8 +421,9 @@ string convertNameToDNS(string URL){
         cerr << "ERROR: URL is invalid please try again" << endl;
         exit(1);
     }
-    
-    DNSName.append(convertIntToString(indexes.at(position)));
+    temp = indexes.at(position);
+    cout << "appending: " << temp << " for " << indexes.at(position) << endl;
+    DNSName.append(1,temp);
     position++;
     for (int i = 0; i< URL.length();i++) {
         if (URL.at(i) == '.') {
@@ -434,15 +436,17 @@ string convertNameToDNS(string URL){
                 number = indexes.at(position) - indexes.at(position-1);
                 position++;
             }
-            DNSName.append(convertIntToString(number-1));
+            temp = number-1;
+            cout << "appending: " << temp << " for " << (number-1) << endl;
+            DNSName.append(1,temp);
+            //DNSName.append(convertIntToString(number-1));
         }
         else {
             DNSName.append(1,URL.at(i));
         }
     }
-    
-    DNSName.append(1,'0');
-    
+    temp = 0;
+    DNSName.append(1,0);
     return DNSName;
 }
                    
@@ -463,11 +467,11 @@ void sendRecieveDNSQuery(Header header, Question question, string DNSUrl, int so
     cout <<queryName << endl;
     
     memcpy(buffer, &header, sizeof(Header));
-    memcpy(buffer+sizeof(Header), queryName, strlen(queryName));
-    memcpy(buffer+sizeof(Header)+strlen(queryName), &question, sizeof(Question));
+    memcpy(buffer+sizeof(Header), queryName, strlen(queryName)+1);
+    memcpy(buffer+sizeof(Header)+strlen(queryName)+1, &question, sizeof(Question));
     
     cout << "Debug: sending Packet" << endl;
-    if( sendto(socket,(char*)buffer,sizeof(Header) + strlen(queryName) + sizeof(Question),0,(struct sockaddr*)&serverAddress,sizeOfStruct) < 0)
+    if( sendto(socket,(char*)buffer,sizeof(Header) + strlen(queryName)+1 + sizeof(Question),0,(struct sockaddr*)&serverAddress,sizeOfStruct) < 0)
     {
         cout << "Debug: sending query failed" << endl;
         exit(1);
