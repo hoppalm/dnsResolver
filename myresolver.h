@@ -296,19 +296,25 @@ void sendRecieveDNSQuery(Header header, Question question, string DNSUrl, int so
         currentPosition +=2;
         string name = getName(offsetPosition, offset);
         Response * response = (Response *)currentPosition;
-        currentPosition = currentPosition + sizeof(Response);
+        currentPosition = currentPosition + 10;
         cout << "------------------------------------" << endl;
         cout << "Name: " << name << endl;
         cout << "Type: " << ntohs(response->TYPE) << endl;
         cout << "CLASS: " << ntohs(response->CLASS) << endl;
         cout << "TTL: " << ntohs(response->TTL) << endl; //giving me wrong answers
         cout << "RDLENGTH: " << ntohs(response->RDLENGTH) << endl;
-     
+    
+        cout <<sizeof(Response) <<endl;
         int length =ntohs(response->RDLENGTH);
         string rData = getRData(length, currentPosition);
         currentPosition = currentPosition + length;
         cout << "Rdata: " << rData << endl;
         cout << "------------------------------------" << endl;
+    
+        unsigned char * temp;
+        temp = (unsigned char *) currentPosition;
+        cout << (int)*temp <<endl;
+    
     }
     
     
