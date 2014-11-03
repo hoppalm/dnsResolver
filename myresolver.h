@@ -79,7 +79,6 @@ void populateRootServers(vector<string> &IPv4RootServers, vector<string> &IPv6Ro
 void populateDNSHeader();
 void populateQuestionPacket(Question * question, int queryType);
 string convertNameToDNS(string URL);
-string convertIntToString (int number);
 void sendRecieveDNSQuery(Header* header, Question * question, string DNSUrl, int socket, struct sockaddr_in serverAddress);
 void DNSResolver(string URL, int queryType, vector<string> &rootServers);
 
@@ -178,7 +177,7 @@ string convertNameToDNS(string URL){
         exit(1);
     }
     temp = indexes.at(position);
-    cout << "appending: " << temp << " for " << indexes.at(position) << endl;
+    cout << "Debug: appending: " << temp << " for " << indexes.at(position) << endl;
     DNSName.append(1,temp);
     position++;
     for (int i = 0; i< URL.length();i++) {
@@ -193,9 +192,8 @@ string convertNameToDNS(string URL){
                 position++;
             }
             temp = number-1;
-            cout << "appending: " << temp << " for " << (number-1) << endl;
+            cout << "Debug: appending: " << temp << " for " << (number-1) << endl;
             DNSName.append(1,temp);
-            //DNSName.append(convertIntToString(number-1));
         }
         else {
             DNSName.append(1,URL.at(i));
@@ -204,13 +202,6 @@ string convertNameToDNS(string URL){
     temp = 0;
     DNSName.append(1,0);
     return DNSName;
-}
-                   
-string convertIntToString (int number)
-{
-    ostringstream tempString;
-    tempString<<number;
-    return tempString.str();
 }
 
 void sendRecieveDNSQuery(Header header, Question question, string DNSUrl, int socket, struct sockaddr_in serverAddress){
@@ -267,8 +258,6 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
     
 
 }
-
-
 
 /*
  * main function for myresolver
