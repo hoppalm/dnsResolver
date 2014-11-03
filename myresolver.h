@@ -318,10 +318,12 @@ void sendRecieveDNSQuery(Header header, Question question, string DNSUrl, int so
     int offset = getCompressionInformation(currentPosition);
     currentPosition +=2;
     cout << "Debug offset " << offset << endl;
+    string name = getName(offsetPosition, offset);
+    cout << "Debug Name: " << name << endl;
     
     int numberOfAdditional = ntohs(responseHeader->nscount);
     cout << "Debug: number of additionals " << numberOfAdditional << endl;
-    string name = getName(offsetPosition, offset);
+   
     
     /*
     //loop through additionals store ips
@@ -378,32 +380,35 @@ int getCompressionInformation(char * currentPosition){
 }
 
 string getName(char * position, int offset){
-    return "";
+    string name = "";
+    position = position + offset;
+    int firstIteration = 0;
+    
+    unsigned char * temp;
+    temp = (unsigned char *) position;
+    
+    int numberOfBytesToAdvance = (int)*temp;
+    cout << "Debug: Number of bytes to advance " << numberOfBytesToAdvance << endl;
+    position = position + 1;
+    
+    while (numberOfBytesToAdvance != 0){
+        if(firstIteration != 0){
+            name.append(1,'.');
+        }
+        for (int i = 0; i<numberOfBytesToAdvance; i++) {
+            temp = (unsigned char *) position;
+            name.append(1,*temp);
+            position = position + 1;
+        }
+        
+        temp = (unsigned char *) position;
+        
+        numberOfBytesToAdvance = (int)*temp;
+        cout << "Debug: Number of bytes to advance " << numberOfBytesToAdvance << endl;
+        position = position + 1;
+    }
+    return name;
 }
-/*
- typedef struct{
- unsigned char compression : 2;
- unsigned char offset : 14;
- } CompressionData;
- */
-
-//unsigned int id : 16; /*A 16 bit identifier assigned by the program that generates any kind of query*/
-//unsigned char rd: 1; /* this bit directs the name server to pursue the query recursively*/
-///unsigned char tc: 1; /*specifies that this message was truncated*/
-//unsigned char aa: 1; /*Authoritative Answer - this bit is only meaningful in responses, and specifies that the responding
-  //                    name server is an authority for the domain name in question section.*/
-//unsigned char opcode: 4; /*A four bit field that specifies kind of query in this message*/
-//unsigned char qr: 1; /*A one bit field that specifies whether this message is a query (0), or a response (1).*/
-//unsigned char rcode: 4; /*Response code - this 4 bit field is set as part of responses*/
-//unsigned char z: 3; /*Reserved for future use.*/
-//unsigned char ra: 1; /*this be is set or cleared in a response, and denotes whether recursive
-    //                  query support is available in the name server*/
-//unsigned int qbcount: 16; /*an unsigned 16 bit integer specifying the number of entries in the question section*/
-//unsigned int ancount: 16; /*an unsigned 16 bit integer specifying the number of resource records in the answer section*/
-//unsigned int nscount: 16; /*an unsigned 16 bit integer specifying the number of name server resource records in the
-  //                         authority records section*/
-//unsigned int arcount: 16; /*an unsigned 16 bit integer specifying the number of resource records in the additional
-      //                     records section*/
 
 void DNSResolver(string URL, int queryType, vector<string> &rootServers){
     
