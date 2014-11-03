@@ -72,6 +72,18 @@ typedef struct{
     unsigned int QCLASS: 16;
 } Question;
 
+typedef struct{
+    unsigned int TYPE: 16;
+    unsigned int CLASS: 16;
+    unsigned int TTL: 32;
+    unsigned int RDLENGTH: 16;
+} Response;
+
+typedef struct{
+    char * NAME;
+    char * RDATA;
+} ResponseData;
+
 //This project
 int clientSetup(const char * server_IP, const char * port, struct sockaddr_in & serverAddress);
 void myresolver(string URL, string recordType);
@@ -205,33 +217,41 @@ string convertNameToDNS(string URL){
 }
 
 void sendRecieveDNSQuery(Header header, Question question, string DNSUrl, int socket, struct sockaddr_in serverAddress){
+    //store the answers
+    vector<Response> answersStruct;
+    vector<ResponseData> answers;
+    vector<string> nextIPs;
+    char * currentPosition;
+    
     unsigned int sizeOfStruct = sizeof(serverAddress);
     char buffer [65536];
     const char * queryName = DNSUrl.c_str();
     cout << "DEBUG size of header " << sizeof(Header) << endl;
     cout << "DEBUG size of question " << sizeof(Question) << endl;
-    cout << "DEBUG size of name " << strlen(queryName) << endl;
-    cout <<queryName << endl;
+    cout << "DEBUG size of name " << strlen(queryName)+1 << endl;
     
     memcpy(buffer, &header, sizeof(Header));
     memcpy(buffer+sizeof(Header), queryName, strlen(queryName)+1);
     memcpy(buffer+sizeof(Header)+strlen(queryName)+1, &question, sizeof(Question));
     
     cout << "Debug: sending Packet" << endl;
+    
     if( sendto(socket,(char*)buffer,sizeof(Header) + strlen(queryName)+1 + sizeof(Question),0,(struct sockaddr*)&serverAddress,sizeOfStruct) < 0)
     {
         cout << "Debug: sending query failed" << endl;
         exit(1);
     }
-    cout << "send complete" << endl;
     
+    cout << "Debug: send complete" << endl;
     
     cout << "Debug: Receiving Packet" << endl;
+    
     if(recvfrom (socket,(char*)buffer,65536,0,(struct sockaddr*)&serverAddress,&sizeOfStruct) < 0)
     {
         cout << "Debug: receive query failed" << endl;
         exit(1);
     }
+    
     cout << "Debug: Receiving Packet" << endl;
     
     Header * responseHeader = (Header *)buffer;
@@ -241,7 +261,7 @@ void sendRecieveDNSQuery(Header header, Question question, string DNSUrl, int so
     //truncated error out
     if (responseHeader->tc == 1) {
         cerr << "Error truncated bit was set in response header" << endl;
-        exit(1);
+        //TO DO handle situation
     }
     char rcode = responseHeader->rcode;
     //error condition. TODO: Handle each one appropriately
@@ -255,6 +275,25 @@ void sendRecieveDNSQuery(Header header, Question question, string DNSUrl, int so
         cerr << "Domain name does not exist, quitting" << endl;
         exit(1);
     }
+    
+    currentPosition = &buffer[sizeof(Header) + strlen(queryName)+1 + sizeof(Question)];
+    
+    int numberOfAnswers = ntohs(responseHeader->ancount);
+    cout << "Debug: number of Answers " << numberOfAnswers << endl;
+    char * temp = (char)buffer;
+    cout << "Debug: first digit " << (int)(*temp) << endl;
+    //loop though answers store in the answers vectors
+    
+    int numberOfAuthorities = ntohs(responseHeader->nscount);
+    cout << "Debug: number of Authorities " << numberOfAuthorities << endl;
+    //loop through authorities "dont need to process anything"
+    
+    int numberOfAdditional = ntohs(responseHeader->nscount);
+    cout << "Debug: number of additionals " << numberOfAdditional << endl;
+    //loop through additionals store ips
+    
+    
+    //print out answers
     
 }
 
