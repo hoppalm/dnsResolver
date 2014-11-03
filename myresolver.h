@@ -100,17 +100,8 @@ void populateQuestionPacket(Question * question, int queryType);
 string convertNameToDNS(string URL);
 void sendRecieveDNSQuery(Header* header, Question * question, string DNSUrl, int socket, struct sockaddr_in serverAddress);
 void DNSResolver(string URL, int queryType, vector<string> &rootServers);
-string getName(char * buffer);
-string convertIntToString (int number);
-
-
-string convertIntToString (int number)
-{
-    ostringstream tempString;
-    tempString<<number;
-    return tempString.str();
-}
-
+string getName(char * position, int offset);
+int getCompressionInformation(char * currentPosition);
 
 /*
  * populates the root server vectors
@@ -239,6 +230,7 @@ void sendRecieveDNSQuery(Header header, Question question, string DNSUrl, int so
     vector<ResponseData> answers;
     vector<string> nextIPs;
     char * currentPosition;
+    char * offsetPosition;
     
     unsigned int sizeOfStruct = sizeof(serverAddress);
     char buffer [65536];
@@ -293,13 +285,66 @@ void sendRecieveDNSQuery(Header header, Question question, string DNSUrl, int so
         exit(1);
     }
     
+    currentPosition = &buffer[sizeof(Header) + strlen(queryName)+1 + sizeof(Question)];
+    
+    offsetPosition = &buffer[0];
+    
+    int numberOfAnswers = ntohs(responseHeader->ancount);
+    cout << "Debug: number of Answers " << numberOfAnswers << endl;
+    
+    //loop though answers store in the answers vectors
+    /*
+    for(int i = 0; i < numberOfAnswers; i++){
+        int offset = getCompressionInformation(currentPosition);
+        currentPosition +=2;
+        cout << "Debug offset " << offset << endl;
+        string name = getName(offsetPosition, offset);
+        
+    }*/
+    
+    int numberOfAuthorities = ntohs(responseHeader->nscount);
+    cout << "Debug: number of Authorities " << numberOfAuthorities << endl;
+    
+    //loop through authorities "dont need to process anything"
+    /*
+    for(int i = 0; i < numberOfAuthorities; i++){
+        int offset = getCompressionInformation(currentPosition);
+        currentPosition +=2;
+        cout << "Debug offset " << offset << endl;
+        string name = getName(offsetPosition, offset);
+    }
+    */
+    
+    int offset = getCompressionInformation(currentPosition);
+    currentPosition +=2;
+    cout << "Debug offset " << offset << endl;
+    
+    int numberOfAdditional = ntohs(responseHeader->nscount);
+    cout << "Debug: number of additionals " << numberOfAdditional << endl;
+    string name = getName(offsetPosition, offset);
+    
+    /*
+    //loop through additionals store ips
+    for(int i = 0; i < numberOfAdditional; i++){
+        int offset = getCompressionInformation(currentPosition);
+        currentPosition +=2;
+        cout << "Debug offset " << offset << endl;
+        string name = getName(offsetPosition, offset);
+    }
+    */
+    
+    //print out answers
+    
+}
+
+//get offset number for the compression
+int getCompressionInformation(char * currentPosition){
     char * temp;
     int asciiNumbers[2];
     
-    currentPosition = &buffer[sizeof(Header) + strlen(queryName)+1 + sizeof(Question)];
     temp = (char *)currentPosition;
     asciiNumbers[0] = (int)(*temp);
-  
+    
     currentPosition = currentPosition + 1;
     temp = (char *)currentPosition;
     asciiNumbers[1] = (int)(*temp);
@@ -329,30 +374,10 @@ void sendRecieveDNSQuery(Header header, Question question, string DNSUrl, int so
     
     int offset = comparebytes.to_ulong();
     
-    cout << "Debug offset " << offset << endl;
-    int i;
-    
-    int numberOfAnswers = ntohs(responseHeader->ancount);
-    cout << "Debug: number of Answers " << numberOfAnswers << endl;
-    
-    //loop though answers store in the answers vectors
-    for(int i = 0; i < numberOfAnswers; i++){
-        
-    }
-    int numberOfAuthorities = ntohs(responseHeader->nscount);
-    cout << "Debug: number of Authorities " << numberOfAuthorities << endl;
-    //loop through authorities "dont need to process anything"
-    
-    int numberOfAdditional = ntohs(responseHeader->nscount);
-    cout << "Debug: number of additionals " << numberOfAdditional << endl;
-    //loop through additionals store ips
-    
-    
-    //print out answers
-    
+    return offset;
 }
 
-string getName(char * buffer){
+string getName(char * position, int offset){
     return "";
 }
 /*
