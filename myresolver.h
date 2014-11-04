@@ -377,7 +377,7 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
         memcpy(buffer+sizeof(Header), queryName, strlen(queryName)+1);
         memcpy(buffer+sizeof(Header)+strlen(queryName)+1, &question, sizeof(Question));
         
-        cout << "Debug: sending Packet" << endl;
+        //cout << "Debug: sending Packet" << endl;
         
         if( sendto(socket,(char*)buffer,sizeof(Header) + strlen(queryName)+1 + sizeof(Question),0,(struct sockaddr*)&serverAddress,sizeOfStruct) < 0)
         {
@@ -385,9 +385,9 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             exit(1);
         }
         
-        cout << "Debug: send complete" << endl;
+        //cout << "Debug: send complete" << endl;
         
-        cout << "Debug: Receiving Packet" << endl;
+        //cout << "Debug: Receiving Packet" << endl;
         
         if(recvfrom (socket,(char*)buffer,65536,0,(struct sockaddr*)&serverAddress,&sizeOfStruct) < 0)
         {
@@ -395,7 +395,7 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             exit(1);
         }
         
-        cout << "Debug: Received Packet" << endl;
+        //cout << "Debug: Received Packet" << endl;
         
         Header * responseHeader = (Header *)buffer;
         
@@ -422,7 +422,7 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
         //cout << numberOfAnswers << endl;
         
         //loop though answers store in the answers vectors
-        cout << "-----------------ANSWERS-------------------" << endl;
+        //cout << "-----------------ANSWERS-------------------" << endl;
         
         for(int i = 0; i < numberOfAnswers; i++){
             cout << endl;
@@ -435,11 +435,13 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             Response * response = (Response *)currentPosition;
             response->TTL = getTTL(currentPosition);
             currentPosition = currentPosition + 10;
+            
             cout << "Name: " << name << endl;
             cout << "Type: " << ntohs(response->TYPE) << endl;
             cout << "CLASS: " << ntohs(response->CLASS) << endl;
             cout << "TTL: " << response->TTL << endl;
             cout << "RDLENGTH: " << ntohs(response->RDLENGTH) << endl;
+            
             
             int type = ntohs(response->TYPE);
             
@@ -453,9 +455,19 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
                 cnames.push_back(cname);
             }
             
-            if (type == 1){
-                answerIP = getARData(length, currentPosition);
-                answerIPs.push_back(answerIP);
+            if(queryType == 1) {
+                //a record
+                if (type == 1){
+                    answerIP = getARData(length, currentPosition);
+                    answerIPs.push_back(answerIP);
+                }
+            }
+            else {
+                //aaaa record
+                if (type == 28){
+                    answerIP = getAAAARData(length, currentPosition);
+                    answerIPs.push_back(answerIP);
+                }
             }
             
             currentPosition = currentPosition + length;
@@ -466,14 +478,14 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             cout << endl;
         }
         
-        cout << "----------------------------------------------" << endl;
+        //cout << "----------------------------------------------" << endl;
         
         int numberOfAuthorities = ntohs(responseHeader->nscount);
         
         //loop through authorities "dont need to process anything"
-        cout << "-----------------AUTHORITES-------------------" << endl;
+        //cout << "-----------------AUTHORITES-------------------" << endl;
         for(int i = 0; i < numberOfAuthorities; i++){
-            cout << endl;
+            //cout << endl;
             int offset = getCompressionInformation(currentPosition);
             currentPosition +=2;
             string name = "";
@@ -482,12 +494,13 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             Response * response = (Response *)currentPosition;
             response->TTL = getTTL(currentPosition);
             currentPosition = currentPosition + 10;
+            /*
             cout << "Name: " << name << endl;
             cout << "Type: " << ntohs(response->TYPE) << endl;
             cout << "CLASS: " << ntohs(response->CLASS) << endl;
             cout << "TTL: " << response->TTL << endl; //giving me wrong answers
             cout << "RDLENGTH: " << ntohs(response->RDLENGTH) << endl;
-            
+            */
             int type = ntohs(response->TYPE);
             
             int length =ntohs(response->RDLENGTH);
@@ -499,19 +512,19 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             }
             
             currentPosition = currentPosition + length;
-            cout << "Rdata: " << rData << endl;
+            //cout << "Rdata: " << rData << endl;
             
-            cout << endl;
+            //cout << endl;
         }
-        cout << "----------------------------------------------" << endl;
+        //cout << "----------------------------------------------" << endl;
         
         
         int numberOfAdditional = ntohs(responseHeader->arcount);
         
-        cout << "-----------------ADDITIONAL-------------------" << endl;
+        //cout << "-----------------ADDITIONAL-------------------" << endl;
         //loop through additionals store ips
         for(int i = 0; i < numberOfAdditional; i++){
-            cout << endl;
+            //cout << endl;
             
             int offset = getCompressionInformation(currentPosition);
             //cout << offset << endl;
@@ -522,12 +535,12 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             Response * response = (Response *)currentPosition;
             response->TTL = getTTL(currentPosition);
             currentPosition = currentPosition + 10;
-            cout << "Name: " << name << endl;
+            /*cout << "Name: " << name << endl;
             cout << "Type: " << ntohs(response->TYPE) << endl;
             cout << "CLASS: " << ntohs(response->CLASS) << endl;
             cout << "TTL: " << response->TTL << endl; //giving me wrong answers
             cout << "RDLENGTH: " << ntohs(response->RDLENGTH) << endl;
-            
+            */
             int type = ntohs(response->TYPE);
             int length =ntohs(response->RDLENGTH);
             string rData;
@@ -547,12 +560,12 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             }
             
             currentPosition = currentPosition + length;
-            cout << "Rdata: " << rData << endl;
+            //cout << "Rdata: " << rData << endl;
             
-            cout << endl;
+            //cout << endl;
         }
         
-        cout << "------------------------------------" << endl;
+        //cout << "------------------------------------" << endl;
         
         if (numberOfAnswers == 0 && nextIPs.size() > 0){
             DNSResolver(URL, queryType, nextIPs);
@@ -611,7 +624,7 @@ void myresolver(string URL, int recordType){
 
     populateRootServers(IPv4RootServers, IPv6RootServers);
     
-    cout << "Debug: IPv4RootServers  ";
+    /*cout << "Debug: IPv4RootServers  ";
     for (unsigned int i = 0; i < IPv4RootServers.size(); i++){
         cout << IPv4RootServers.at(i) << " ";
     }
@@ -622,7 +635,7 @@ void myresolver(string URL, int recordType){
         cout << IPv6RootServers.at(i) << " ";
     }
     cout<< endl;
-    
+    */
     if(recordType == 1) {
         DNSResolver(URL, recordType, IPv4RootServers);
     }
