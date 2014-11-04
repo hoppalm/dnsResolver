@@ -98,6 +98,7 @@ int getCompressionInformation(char * currentPosition);
 string getARData(int length, char * startingPoint);
 string getAAAARData(int length, char * startingPoint);
 string convertIntToString (int number);
+int getTTL(char * position);
 
 /*
  * populates the root server vectors
@@ -432,12 +433,12 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             offsetPosition = &buffer[0];
             name = getName(offsetPosition, offset, buffer);
             Response * response = (Response *)currentPosition;
+            response->TTL = getTTL(currentPosition);
             currentPosition = currentPosition + 10;
-            
             cout << "Name: " << name << endl;
             cout << "Type: " << ntohs(response->TYPE) << endl;
             cout << "CLASS: " << ntohs(response->CLASS) << endl;
-            cout << "TTL: " << ntohs(response->TTL) << endl;
+            cout << "TTL: " << response->TTL << endl;
             cout << "RDLENGTH: " << ntohs(response->RDLENGTH) << endl;
             
             int type = ntohs(response->TYPE);
@@ -479,11 +480,12 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             offsetPosition = &buffer[0];
             name = getName(offsetPosition, offset, buffer);
             Response * response = (Response *)currentPosition;
+            response->TTL = getTTL(currentPosition);
             currentPosition = currentPosition + 10;
             cout << "Name: " << name << endl;
             cout << "Type: " << ntohs(response->TYPE) << endl;
             cout << "CLASS: " << ntohs(response->CLASS) << endl;
-            cout << "TTL: " << ntohs(response->TTL) << endl; //giving me wrong answers
+            cout << "TTL: " << response->TTL << endl; //giving me wrong answers
             cout << "RDLENGTH: " << ntohs(response->RDLENGTH) << endl;
             
             int type = ntohs(response->TYPE);
@@ -518,11 +520,12 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             offsetPosition = &buffer[0];
             name = getName(offsetPosition, offset, buffer);
             Response * response = (Response *)currentPosition;
+            response->TTL = getTTL(currentPosition);
             currentPosition = currentPosition + 10;
             cout << "Name: " << name << endl;
             cout << "Type: " << ntohs(response->TYPE) << endl;
             cout << "CLASS: " << ntohs(response->CLASS) << endl;
-            cout << "TTL: " << ntohs(response->TTL) << endl; //giving me wrong answers
+            cout << "TTL: " << response->TTL << endl; //giving me wrong answers
             cout << "RDLENGTH: " << ntohs(response->RDLENGTH) << endl;
             
             int type = ntohs(response->TYPE);
@@ -575,6 +578,30 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
         cout << "No Answers" << endl;
         
     }
+}
+
+int getTTL(char * position){
+    position = position + 4;
+    bitset<32> comparebytes(string("11111111111111111111111111111111"));
+    int index = 31;
+    for (int i = 0; i < 4; i++){
+        unsigned char * temp;
+        temp = (unsigned char *)position;
+        int asciiNumber = (int)(*temp);
+        position = position + 1;
+        bitset<8> bytes (asciiNumber);
+        //cout << bytes << endl;
+        for (int i = 7; i >= 0; i--){
+            comparebytes[index] = comparebytes[index] & bytes[i];
+            //cout << bytes[i] << endl;
+            index--;
+        }
+    }
+    //cout << "Debug all 32 bytes for offset " << comparebytes << endl;
+    
+    int TTL = comparebytes.to_ulong();
+    
+    return TTL;
 }
 
 /*
