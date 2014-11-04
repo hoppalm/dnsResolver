@@ -77,18 +77,30 @@ typedef struct{
     unsigned int QCLASS: 16;
 } Question;
 
+
 typedef struct{
-    short TYPE: 16;
-    short CLASS: 16;
+    unsigned char name;
+    unsigned short type: 16;
+    unsigned short payload: 16;
+    unsigned char rcode;
+    unsigned char version;
+    unsigned short Z : 16;
+    unsigned short length : 16;
+} Dnssec;
+
+typedef struct{
+    unsigned short TYPE: 16;
+    unsigned short CLASS: 16;
     int TTL;
-    short RDLENGTH: 16;
+    unsigned short RDLENGTH: 16;
 } Response;
 
 //This project
 int clientSetup(const char * server_IP, const char * port, struct sockaddr_in & serverAddress);
 void myresolver(string URL, string recordType);
 void populateRootServers(vector<string> &IPv4RootServers, vector<string> &IPv6RootServers);
-void populateDNSHeader();
+void populateDNSHeader(Header * header);
+void populateDnssecRecord(Dnssec * dnssec);
 void populateQuestionPacket(Question * question, int queryType);
 string convertNameToDNS(string URL);
 void sendRecieveDNSQuery(Header* header, Question * question, string DNSUrl, int socket, struct sockaddr_in serverAddress);
@@ -626,18 +638,13 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
         
         if (numberOfAnswers > 0){
             if (cnames.size() > 0 && answerIPs.size() == 0){
-                if(queryType == 1) {
-                    DNSResolver(cnames.at(0), queryType, IPv4RootServers);
-                }
-                else {
-                    DNSResolver(cnames.at(0), queryType, IPv6RootServers);
-                }
+                DNSResolver(cnames.at(0), queryType, IPv4RootServers);
             }
             return;
         }
         
         cout << "No Answers" << endl;
-        
+        exit(1);
     }
 }
 
