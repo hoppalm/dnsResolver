@@ -179,7 +179,7 @@ string convertNameToDNS(string URL){
     if (URL.substr(0, 7) == "http://") {
         URL = URL.substr(7);
     }
-    else if (DNSName.substr(0, 8) == "https://") {
+    else if (URL.substr(0, 8) == "https://") {
         URL = URL.substr(8);
     }
     
@@ -221,6 +221,7 @@ string convertNameToDNS(string URL){
     }
     temp = 0;
     DNSName.append(1,0);
+    //cout<<DNSName <<endl;
     return DNSName;
 }
 
@@ -274,6 +275,12 @@ string getName(char * position, int offset, char * buffer){
     string name = "";
     position = position + offset;
     int firstIteration = 0;
+    
+    int testCompression = getCompressionInformation(position);
+    if (testCompression > 0){
+        position = &buffer[0];
+        position = position + testCompression;
+    }
     
     unsigned char * temp;
     temp = (unsigned char *) position;
@@ -411,7 +418,7 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
         
         int numberOfAnswers = ntohs(responseHeader->ancount);
         
-        cout << numberOfAnswers << endl;
+        //cout << numberOfAnswers << endl;
         
         //loop though answers store in the answers vectors
         cout << "-----------------ANSWERS-------------------" << endl;
@@ -505,7 +512,7 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             cout << endl;
             
             int offset = getCompressionInformation(currentPosition);
-            cout << offset << endl;
+            //cout << offset << endl;
             currentPosition +=2;
             string name = "";
             offsetPosition = &buffer[0];
@@ -545,8 +552,8 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
         cout << "------------------------------------" << endl;
         
         if (numberOfAnswers == 0 && nextIPs.size() > 0){
-            loop = false;
             DNSResolver(URL, queryType, nextIPs);
+            return;
         }
         
         if (numberOfAnswers == 0 && nextIPs.size() == 0){
@@ -555,7 +562,6 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
         
         if (numberOfAnswers > 0){
             if (cnames.size() > 0 && answerIPs.size() == 0){
-                loop = false;
                 if(queryType == 1) {
                     DNSResolver(cnames.at(0), queryType, IPv4RootServers);
                 }
@@ -565,7 +571,9 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             }
             return;
         }
-        //print out answers
+        
+        cout << "No Answers" << endl;
+        
     }
 }
 
