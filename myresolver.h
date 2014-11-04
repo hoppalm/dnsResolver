@@ -92,8 +92,8 @@ void sendRecieveDNSQuery(Header* header, Question * question, string DNSUrl, int
 void DNSResolver(string URL, int queryType, vector<string> &rootServers);
 string getName(char * position, int offset, char * buffer);
 int getCompressionInformation(char * currentPosition);
-string getRData(int length, char * startingPoint);
-
+string getARData(int length, char * startingPoint);
+string convertIntToString (int number);
 /*
  * populates the root server vectors
  */
@@ -114,6 +114,13 @@ void populateRootServers(vector<string> &IPv4RootServers, vector<string> &IPv6Ro
     IPv6RootServers.push_back("2001:503:c27::2:30");
     IPv6RootServers.push_back("2001:7fd::1");
     IPv6RootServers.push_back("2001:500:3::42");
+}
+
+string convertIntToString (int number)
+{
+    ostringstream tempString;
+    tempString<<number;
+    return tempString.str();
 }
 
 /*
@@ -284,6 +291,7 @@ void sendRecieveDNSQuery(Header header, Question question, string DNSUrl, int so
     
     for(int i = 0; i < numberOfAnswers; i++){
         cout << endl;
+        
         int offset = getCompressionInformation(currentPosition);
         currentPosition +=2;
         string name = "";
@@ -298,10 +306,13 @@ void sendRecieveDNSQuery(Header header, Question question, string DNSUrl, int so
         cout << "TTL: " << ntohs(response->TTL) << endl; //giving me wrong answers
         cout << "RDLENGTH: " << ntohs(response->RDLENGTH) << endl;
         
+        int type = ntohs(response->TYPE);
+        
         int length =ntohs(response->RDLENGTH);
-        string rData = getRData(length, currentPosition);
+        
+        //string rData = getRData(length, currentPosition);
         currentPosition = currentPosition + length;
-        cout << "Rdata: " << rData << endl;
+        cout << "Rdata: " << "" << endl;
         
         cout << endl;
     }
@@ -314,7 +325,6 @@ void sendRecieveDNSQuery(Header header, Question question, string DNSUrl, int so
     cout << "-----------------AUTHORITES-------------------" << endl;
     for(int i = 0; i < numberOfAuthorities; i++){
         cout << endl;
-        
         int offset = getCompressionInformation(currentPosition);
         currentPosition +=2;
         string name = "";
@@ -328,8 +338,16 @@ void sendRecieveDNSQuery(Header header, Question question, string DNSUrl, int so
         cout << "TTL: " << ntohs(response->TTL) << endl; //giving me wrong answers
         cout << "RDLENGTH: " << ntohs(response->RDLENGTH) << endl;
         
+        int type = ntohs(response->TYPE);
+        
         int length =ntohs(response->RDLENGTH);
-        string rData = getRData(length, currentPosition);
+        
+        string rData;
+        
+        if (type == 2){
+            rData = getName(currentPosition,0,buffer);
+        }
+        
         currentPosition = currentPosition + length;
         cout << "Rdata: " << rData << endl;
 
@@ -359,8 +377,21 @@ void sendRecieveDNSQuery(Header header, Question question, string DNSUrl, int so
         cout << "TTL: " << ntohs(response->TTL) << endl; //giving me wrong answers
         cout << "RDLENGTH: " << ntohs(response->RDLENGTH) << endl;
         
+        int type = ntohs(response->TYPE);
         int length =ntohs(response->RDLENGTH);
-        string rData = getRData(length, currentPosition);
+        string rData;
+        //a record
+        if (type == 1){
+            rData = getARData(length, currentPosition);
+            
+        }
+        
+        //aaaa record
+        if (type == 28){
+            rData = getName(currentPosition,0,buffer);
+        }
+        
+
         currentPosition = currentPosition + length;
         cout << "Rdata: " << rData << endl;
         
@@ -373,13 +404,6 @@ void sendRecieveDNSQuery(Header header, Question question, string DNSUrl, int so
     //print out answers
     
 }
-/*
-typedef struct{
-    unsigned int TYPE: 16;
-    unsigned int CLASS: 16;
-    unsigned int TTL: 32;
-    unsigned int RDLENGTH: 16;
-} Response;*/
 
 //get offset number for the compression
 int getCompressionInformation(char * currentPosition){
@@ -388,13 +412,13 @@ int getCompressionInformation(char * currentPosition){
     
     temp = (unsigned char *)currentPosition;
     asciiNumbers[0] = (  int)(*temp);
-    cout << asciiNumbers[0] << endl;
+    //cout << asciiNumbers[0] << endl;
     
     currentPosition = currentPosition + 1;
     temp = (unsigned char *)currentPosition;
     asciiNumbers[1] = ( int)(*temp);
     
-    cout <<asciiNumbers[1] << endl;
+    //cout <<asciiNumbers[1] << endl;
     currentPosition = currentPosition + 1;
     
     bitset<8> bytes1 (asciiNumbers[0]);
@@ -462,11 +486,32 @@ string getName(char * position, int offset, char * buffer){
         
         position = position + 1;
     }
-    cout << "Debug: Name returned " << name << endl;
+    //cout << "Debug: Name returned " << name << endl;
     return name;
 }
 
-string getRData(int length, char * startingPoint){
+string getARData(int length, char * startingPoint){
+    string rData = "";
+    for (int i = 0; i < length; i++) {
+        unsigned char * temp;
+        temp = (unsigned char *) startingPoint;
+        
+        int part = (int)*temp;
+        
+        rData.append(convertIntToString(part));
+        
+        if ((i+1) < length) {
+            rData.append(1,'.');
+        }
+        startingPoint += 1;
+        
+    }
+    return rData;
+}
+
+string getAAAARData(int length, char * startingPoint){
+    string rData = "";
+    //TO DO IMPLEMENT
     return "";
 }
 
