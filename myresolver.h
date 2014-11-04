@@ -90,7 +90,7 @@ void populateQuestionPacket(Question * question, int queryType);
 string convertNameToDNS(string URL);
 void sendRecieveDNSQuery(Header* header, Question * question, string DNSUrl, int socket, struct sockaddr_in serverAddress);
 void DNSResolver(string URL, int queryType, vector<string> &rootServers);
-string getName(char * position, int offset);
+string getName(char * position, int offset, char * buffer);
 int getCompressionInformation(char * currentPosition);
 string getRData(int length, char * startingPoint);
 
@@ -273,9 +273,11 @@ void sendRecieveDNSQuery(Header header, Question question, string DNSUrl, int so
     
     currentPosition = &buffer[sizeof(Header) + strlen(queryName)+1 + sizeof(Question)];
     
-    offsetPosition = &buffer[0];
+   
     
     int numberOfAnswers = ntohs(responseHeader->ancount);
+    
+    cout << numberOfAnswers << endl;
     
     //loop though answers store in the answers vectors
     cout << "-----------------ANSWERS-------------------" << endl;
@@ -284,7 +286,9 @@ void sendRecieveDNSQuery(Header header, Question question, string DNSUrl, int so
         cout << endl;
         int offset = getCompressionInformation(currentPosition);
         currentPosition +=2;
-        string name = getName(offsetPosition, offset);
+        string name = "";
+        offsetPosition = &buffer[0];
+        name = getName(offsetPosition, offset, buffer);
         Response * response = (Response *)currentPosition;
         currentPosition = currentPosition + 10;
 
@@ -313,10 +317,11 @@ void sendRecieveDNSQuery(Header header, Question question, string DNSUrl, int so
         
         int offset = getCompressionInformation(currentPosition);
         currentPosition +=2;
-        string name = getName(offsetPosition, offset);
+        string name = "";
+        offsetPosition = &buffer[0];
+        name = getName(offsetPosition, offset, buffer);
         Response * response = (Response *)currentPosition;
         currentPosition = currentPosition + 10;
-        cout << "------------------------------------------" << endl;
         cout << "Name: " << name << endl;
         cout << "Type: " << ntohs(response->TYPE) << endl;
         cout << "CLASS: " << ntohs(response->CLASS) << endl;
@@ -343,7 +348,9 @@ void sendRecieveDNSQuery(Header header, Question question, string DNSUrl, int so
         int offset = getCompressionInformation(currentPosition);
         cout << offset << endl;
         currentPosition +=2;
-        string name = getName(offsetPosition, offset);
+        string name = "";
+        offsetPosition = &buffer[0];
+        name = getName(offsetPosition, offset, buffer);
         Response * response = (Response *)currentPosition;
         currentPosition = currentPosition + 10;
         cout << "Name: " << name << endl;
@@ -398,6 +405,10 @@ int getCompressionInformation(char * currentPosition){
     
     //cout << "Debug last 8 bytes for offset "<< bytes2 << endl;
     
+    if ( bytes1[7] != 1 || bytes1[6] != 1) {
+        return -1;
+    }
+    
     bitset<16> comparebytes(string("0011111111111111"));
     
     for (int i = 0; i < 15; i++){
@@ -415,7 +426,8 @@ int getCompressionInformation(char * currentPosition){
     return offset;
 }
 
-string getName(char * position, int offset){
+string getName(char * position, int offset, char * buffer){
+    
     string name = "";
     position = position + offset;
     int firstIteration = 0;
@@ -437,13 +449,20 @@ string getName(char * position, int offset){
             position = position + 1;
         }
         
+        int testCompression = getCompressionInformation(position);
+        if (testCompression > 0){
+            position = &buffer[0];
+            position = position + testCompression;
+        }
+        
         temp = (unsigned char *) position;
         
         numberOfBytesToAdvance = (int)*temp;
         //cout << "Debug: Number of bytes to advance " << numberOfBytesToAdvance << endl;
+        
         position = position + 1;
     }
-    //cout << "Debug: Name returned " << name << endl;
+    cout << "Debug: Name returned " << name << endl;
     return name;
 }
 
