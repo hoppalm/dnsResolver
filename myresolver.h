@@ -3,7 +3,7 @@
  * awget.h
  * 9-22-14
  *
- * Header file containing all function implementation for awget.cc and ss.cc
+ * Header file containing all function implementation for myresolver
  */
 
 #ifndef MYRESOLVER_H_
@@ -339,7 +339,56 @@ string getARData(int length, char * startingPoint){
 }
 
 string getAAAARData(int length, char * startingPoint){
-    string rData = "TO DO IMPLEMENT AAAA";
+    string rData;
+    string previous = "";
+    string byteString = "";
+    int part;
+    int counter = 0;
+    unsigned char * temp;
+    
+    for (int i = 0; i < length/2; i++) {
+        string tempString = "";
+        
+        temp = (unsigned char *) startingPoint;
+        
+        part = (int)*temp;
+        
+        bitset<8> bits (part);
+        
+        byteString = bits.to_string();
+        
+        tempString.append(getHexFromBinaryString(byteString));
+        
+        startingPoint += 1;
+        
+        temp = (unsigned char *) startingPoint;
+        
+        part = (int)*temp;
+        
+        bitset<8> bits1 (part);
+        
+        byteString = bits1.to_string();
+        
+        tempString.append(getHexFromBinaryString(byteString));
+        
+        startingPoint += 1;
+        if (tempString.length() > 1 && tempString.at(0) == '0'){
+            tempString = tempString.substr(1);
+        }
+        rData.append(tempString);
+        
+        if (previous == "" && counter == 0){
+            rData.append(1,':');
+            counter++;
+        }
+        else if (previous != "" && (i+1) < length/2){
+            rData.append(1,':');
+            counter = 0;
+        }
+        
+        previous = tempString;
+        
+    }
     return rData;
 }
 
@@ -423,7 +472,7 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
         //cout << numberOfAnswers << endl;
         
         //loop though answers store in the answers vectors
-        //cout << "-----------------ANSWERS-------------------" << endl;
+        cout << "-----------------ANSWERS-------------------" << endl;
         
         for(int i = 0; i < numberOfAnswers; i++){
             cout << endl;
@@ -479,14 +528,14 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             cout << endl;
         }
         
-        //cout << "----------------------------------------------" << endl;
+        cout << "----------------------------------------------" << endl;
         
         int numberOfAuthorities = ntohs(responseHeader->nscount);
         
         //loop through authorities "dont need to process anything"
-        //cout << "-----------------AUTHORITES-------------------" << endl;
+        cout << "-----------------AUTHORITES-------------------" << endl;
         for(int i = 0; i < numberOfAuthorities; i++){
-            //cout << endl;
+            cout << endl;
             int offset = getCompressionInformation(currentPosition);
             currentPosition +=2;
             string name = "";
@@ -495,13 +544,13 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             Response * response = (Response *)currentPosition;
             response->TTL = getTTL(currentPosition);
             currentPosition = currentPosition + 10;
-            /*
+            
             cout << "Name: " << name << endl;
             cout << "Type: " << ntohs(response->TYPE) << endl;
             cout << "CLASS: " << ntohs(response->CLASS) << endl;
-            cout << "TTL: " << response->TTL << endl; //giving me wrong answers
+            cout << "TTL: " << response->TTL << endl;
             cout << "RDLENGTH: " << ntohs(response->RDLENGTH) << endl;
-            */
+            
             int type = ntohs(response->TYPE);
             
             int length =ntohs(response->RDLENGTH);
@@ -513,22 +562,22 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             }
             
             currentPosition = currentPosition + length;
-            //cout << "Rdata: " << rData << endl;
+            cout << "Rdata: " << rData << endl;
             
-            //cout << endl;
+            cout << endl;
         }
-        //cout << "----------------------------------------------" << endl;
+        cout << "----------------------------------------------" << endl;
         
         
         int numberOfAdditional = ntohs(responseHeader->arcount);
         
-        //cout << "-----------------ADDITIONAL-------------------" << endl;
+        cout << "-----------------ADDITIONAL-------------------" << endl;
         //loop through additionals store ips
         for(int i = 0; i < numberOfAdditional; i++){
-            //cout << endl;
+            cout << endl;
             
             int offset = getCompressionInformation(currentPosition);
-            //cout << offset << endl;
+            cout << offset << endl;
             currentPosition +=2;
             string name = "";
             offsetPosition = &buffer[0];
@@ -536,37 +585,35 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             Response * response = (Response *)currentPosition;
             response->TTL = getTTL(currentPosition);
             currentPosition = currentPosition + 10;
-            /*cout << "Name: " << name << endl;
+            cout << "Name: " << name << endl;
             cout << "Type: " << ntohs(response->TYPE) << endl;
             cout << "CLASS: " << ntohs(response->CLASS) << endl;
-            cout << "TTL: " << response->TTL << endl; //giving me wrong answers
+            cout << "TTL: " << response->TTL << endl;
             cout << "RDLENGTH: " << ntohs(response->RDLENGTH) << endl;
-            */
+            
             int type = ntohs(response->TYPE);
             int length =ntohs(response->RDLENGTH);
             string rData;
             
-            if(queryType == 1) {
-                //a record
-                if (type == 1){
-                    rData = getARData(length, currentPosition);
-                    nextIPs.push_back(rData);
-                }
+
+            //a record
+            if (type == 1){
+                rData = getARData(length, currentPosition);
+                nextIPs.push_back(rData);
             }
-            else {
-                //aaaa record
-                if (type == 28){
-                    rData = getAAAARData(length, currentPosition);
-                }
+            //aaaa record
+            if (type == 28){
+                rData = getAAAARData(length, currentPosition);
             }
+
             
             currentPosition = currentPosition + length;
-            //cout << "Rdata: " << rData << endl;
+            cout << "Rdata: " << rData << endl;
             
-            //cout << endl;
+            cout << endl;
         }
         
-        //cout << "------------------------------------" << endl;
+        cout << "------------------------------------" << endl;
         
         if (numberOfAnswers == 0 && nextIPs.size() > 0){
             DNSResolver(URL, queryType, nextIPs);
@@ -635,12 +682,12 @@ string getHexFromBinaryString (string bytes)
         if (binaryValue == "0111") hexReturn.append(1,'7');
         if (binaryValue == "1000") hexReturn.append(1,'8');
         if (binaryValue == "1001") hexReturn.append(1,'9');
-        if (binaryValue == "1010") hexReturn.append(1,'A');
-        if (binaryValue == "1011") hexReturn.append(1,'B');
-        if (binaryValue == "1100") hexReturn.append(1,'C');
-        if (binaryValue == "1101") hexReturn.append(1,'D');
-        if (binaryValue == "1110") hexReturn.append(1,'E');
-        if (binaryValue == "1111") hexReturn.append(1,'F');
+        if (binaryValue == "1010") hexReturn.append(1,'a');
+        if (binaryValue == "1011") hexReturn.append(1,'b');
+        if (binaryValue == "1100") hexReturn.append(1,'c');
+        if (binaryValue == "1101") hexReturn.append(1,'d');
+        if (binaryValue == "1110") hexReturn.append(1,'e');
+        if (binaryValue == "1111") hexReturn.append(1,'f');
         bytes = bytes.substr(4);
     }
     if (hexReturn == "00"){
@@ -669,14 +716,14 @@ void myresolver(string URL, int recordType){
     cout<< endl;
     */
     
-    //DNSResolver(URL, recordType, IPv4RootServers);
-    
+    DNSResolver(URL, recordType, IPv4RootServers);
+    /*
     if(recordType == 1) {
         DNSResolver(URL, recordType, IPv4RootServers);
     }
     else {
         DNSResolver(URL, recordType, IPv6RootServers);
-    }
+    }*/
 }
 
 #endif /* MYRESOLVER_H_ */
