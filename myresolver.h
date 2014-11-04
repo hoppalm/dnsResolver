@@ -99,6 +99,7 @@ string getARData(int length, char * startingPoint);
 string getAAAARData(int length, char * startingPoint);
 string convertIntToString (int number);
 int getTTL(char * position);
+string getHexFromBinaryString (string bytes);
 
 /*
  * populates the root server vectors
@@ -617,6 +618,37 @@ int getTTL(char * position){
     return TTL;
 }
 
+string getHexFromBinaryString (string bytes)
+{
+    string hexReturn = "";
+    
+    for (int i = 0; i < 2; i++)
+    {
+        string binaryValue = bytes.substr(0,4);
+        if (binaryValue == "0000") hexReturn.append(1,'0');
+        if (binaryValue == "0001") hexReturn.append(1,'1');
+        if (binaryValue == "0010") hexReturn.append(1,'2');
+        if (binaryValue == "0011") hexReturn.append(1,'3');
+        if (binaryValue == "0100") hexReturn.append(1,'4');
+        if (binaryValue == "0101") hexReturn.append(1,'5');
+        if (binaryValue == "0110") hexReturn.append(1,'6');
+        if (binaryValue == "0111") hexReturn.append(1,'7');
+        if (binaryValue == "1000") hexReturn.append(1,'8');
+        if (binaryValue == "1001") hexReturn.append(1,'9');
+        if (binaryValue == "1010") hexReturn.append(1,'A');
+        if (binaryValue == "1011") hexReturn.append(1,'B');
+        if (binaryValue == "1100") hexReturn.append(1,'C');
+        if (binaryValue == "1101") hexReturn.append(1,'D');
+        if (binaryValue == "1110") hexReturn.append(1,'E');
+        if (binaryValue == "1111") hexReturn.append(1,'F');
+        bytes = bytes.substr(4);
+    }
+    if (hexReturn == "00"){
+        return "";
+    }
+    return hexReturn;
+}
+
 /*
  * main function for myresolver
  */
@@ -636,6 +668,9 @@ void myresolver(string URL, int recordType){
     }
     cout<< endl;
     */
+    
+    //DNSResolver(URL, recordType, IPv4RootServers);
+    
     if(recordType == 1) {
         DNSResolver(URL, recordType, IPv4RootServers);
     }
