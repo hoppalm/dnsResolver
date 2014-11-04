@@ -176,7 +176,17 @@ void populateDNSHeader(Header * header){
     header->qbcount = htons(1); // one question
     header->ancount = 0;
     header->nscount = 0;
-    header->arcount = 0;
+    header->arcount = htons(1); // one addtion of signatures
+}
+
+void populateDnssecRecord(Dnssec * dnssec){
+    dnssec->name = 0;
+    dnssec->type = 41;
+    dnssec->payload = 4096;
+    dnssec->rcode = 0;
+    dnssec->version = 0;
+    dnssec->Z = 32768;
+    dnssec->length = 0;
 }
 
 void populateQuestionPacket(Question * question, int queryType){
@@ -411,7 +421,9 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
     
     Header header;
     Question question;
+    Dnssec dnssec;
     populateDNSHeader(&header);
+    populateDnssecRecord(&dnssec);
     
     while (loop) {
         
@@ -438,6 +450,7 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
         memcpy(buffer, &header, sizeof(Header));
         memcpy(buffer+sizeof(Header), queryName, strlen(queryName)+1);
         memcpy(buffer+sizeof(Header)+strlen(queryName)+1, &question, sizeof(Question));
+        //memcpy(buffer+sizeof(Header) + strlen(queryName)+1 + sizeof(Question), &dnssec, sizeof(Dnssec));
         
         //cout << "Debug: sending Packet" << endl;
         
