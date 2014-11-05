@@ -128,6 +128,8 @@ void handleRRSIGRecord(char * currentPosition, int length, int type, char * buff
 string getSignature(char * currentPosition, int length);
 string getDate(int seconds);
 string getMonth(string month);
+void outputResponse(string name, Response response, string rdata);
+void outputDnnsecResponse(string name, Response response, DnssecResponse dnssecResponse, string signersName, string signature);
 
 /*
  * Split a string into tokens based upon the delimiter
@@ -519,7 +521,6 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
         vector<string> cnames;
         vector<string> answerIPs;
         char * currentPosition;
-        char * offsetPosition;
         
         unsigned int sizeOfStruct = sizeof(serverAddress);
         char buffer [65536];
@@ -542,14 +543,13 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
         memcpy(buffer+sizeof(Header) + strlen(queryName)+1 + sizeof(Question) + 7, &tempZ, sizeof(unsigned short));
         memcpy(buffer+sizeof(Header) + strlen(queryName)+1 + sizeof(Question) + 9, &tempLength, sizeof(unsigned short));
         
-        //memcpy(buffer+sizeof(Header) + strlen(queryName)+1 + sizeof(Question), &dnssec, sizeof(Dnssec));
-        
         //cout << "Debug: sending Packet" << endl;
         
         if( sendto(socket,(char*)buffer,sizeof(Header) + strlen(queryName)+1 + sizeof(Question) + 11,0,(struct sockaddr*)&serverAddress,sizeOfStruct) < 0)
         {
-            cout << "Debug: sending query failed" << endl;
-            exit(1);
+            cout << "Sending query failed going to next server" << endl;
+            currentServerID++;
+            continue;
         }
         
         //cout << "Debug: send complete" << endl;
@@ -558,8 +558,9 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
         
         if(recvfrom (socket,(char*)buffer,65536,0,(struct sockaddr*)&serverAddress,&sizeOfStruct) < 0)
         {
-            cout << "Debug: receive query failed" << endl;
-            exit(1);
+            cout << "Receive query failed going to next server" << endl;
+            currentServerID++;
+            continue;
         }
         
         //cout << "Debug: Received Packet" << endl;
@@ -589,27 +590,25 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
         cout << numberOfAnswers << endl;
         
         //loop though answers store in the answers vectors
-        cout << "-----------------ANSWERS-------------------" << endl;
+        //cout << "-----------------ANSWERS-------------------" << endl;
         
         for(int i = 0; i < numberOfAnswers; i++){
-            cout << endl;
+            //cout << endl;
             
             int numberOfBytes = 0;
             string name = "";
             name = getName(currentPosition, 0, buffer, numberOfBytes);
             currentPosition += numberOfBytes;
             
-            cout << numberOfBytes << endl;
+            //cout << numberOfBytes << endl;
             
             Response * response = (Response *)currentPosition;
             response->TTL = convertBytesToInt(currentPosition);
             currentPosition = currentPosition + 10;
             
-            cout << "Name: " << name << endl;
-            cout << "Type: " << ntohs(response->TYPE) << endl;
-            cout << "CLASS: " << ntohs(response->CLASS) << endl;
-            cout << "TTL: " << response->TTL << endl;
-            cout << "RDLENGTH: " << ntohs(response->RDLENGTH) << endl;
+            response->TYPE = ntohs(response->TYPE);
+            response->CLASS = ntohs(response->CLASS);
+            response->RDLENGTH = ntohs(response->RDLENGTH);
             
             int type = ntohs(response->TYPE);
             
@@ -618,23 +617,33 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             string cname = "";
             string answerIP = "";
             
+            
             if (type == 5){
+                //print stuff
                 cname = getName(currentPosition,0,buffer,numberOfBytes);
                 cnames.push_back(cname);
+                outputResponse(name, *response, cname);
+                //cout << "Cname: " << cname<< endl;
             }
             
             if(queryType == 1) {
                 //a record
                 if (type == 1){
+                    //print stuff
                     answerIP = getARData(length, currentPosition);
                     answerIPs.push_back(answerIP);
+                    //cout << "answerIP: " << answerIP<< endl;
+                    outputResponse(name, *response, answerIP);
                 }
             }
             else {
                 //aaaa record
                 if (type == 28){
+                    //print stuff
                     answerIP = getAAAARData(length, currentPosition);
                     answerIPs.push_back(answerIP);
+                    //cout << "answerIP: " << answerIP<< endl;
+                    outputResponse(name, *response, answerIP);
                 }
             }
             
@@ -643,38 +652,33 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             }
             
             currentPosition = currentPosition + length;
-            cout << "Cname: " << cname<< endl;
-            cout << "answerIP: " << answerIP<< endl;
-
             
-            cout << endl;
+            //cout << endl;
         }
         
-        cout << "----------------------------------------------" << endl;
+        //cout << "----------------------------------------------" << endl;
         
         int numberOfAuthorities = ntohs(responseHeader->nscount);
         
         //loop through authorities "dont need to process anything"
-        cout << "-----------------AUTHORITES-------------------" << endl;
+        //cout << "-----------------AUTHORITES-------------------" << endl;
         for(int i = 0; i < numberOfAuthorities; i++){
-            cout << endl;
+            //cout << endl;
             
             int numberOfBytes = 0;
             string name = "";
             name = getName(currentPosition, 0, buffer, numberOfBytes);
             currentPosition += numberOfBytes;
             
-            cout << numberOfBytes << endl;
+            //cout << numberOfBytes << endl;
             
             Response * response = (Response *)currentPosition;
             response->TTL = convertBytesToInt(currentPosition);
             currentPosition = currentPosition + 10;
             
-            cout << "Name: " << name << endl;
-            cout << "Type: " << ntohs(response->TYPE) << endl;
-            cout << "CLASS: " << ntohs(response->CLASS) << endl;
-            cout << "TTL: " << response->TTL << endl;
-            cout << "RDLENGTH: " << ntohs(response->RDLENGTH) << endl;
+            response->TYPE = ntohs(response->TYPE);
+            response->CLASS = ntohs(response->CLASS);
+            response->RDLENGTH = ntohs(response->RDLENGTH);
             
             int type = ntohs(response->TYPE);
             
@@ -691,40 +695,38 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             }
             
             currentPosition = currentPosition + length;
-            cout << "Rdata: " << rData << endl;
+            //cout << "Rdata: " << rData << endl;
             
-            cout << endl;
+            //cout << endl;
         }
-        cout << "----------------------------------------------" << endl;
+        //cout << "----------------------------------------------" << endl;
         
         
         int numberOfAdditional = ntohs(responseHeader->arcount);
         
-        cout << "-----------------ADDITIONAL-------------------" << endl;
+        //cout << "-----------------ADDITIONAL-------------------" << endl;
         //loop through additionals store ips
         for(int i = 0; i < numberOfAdditional-1; i++){
-            cout << endl;
+            //cout << endl;
             
             int numberOfBytes = 0;
             string name = "";
             name = getName(currentPosition, 0, buffer, numberOfBytes);
             currentPosition += numberOfBytes;
             
-            cout << numberOfBytes << endl;
+            //cout << numberOfBytes << endl;
             
             Response * response = (Response *)currentPosition;
             response->TTL = convertBytesToInt(currentPosition);
             currentPosition = currentPosition + 10;
-            cout << "Name: " << name << endl;
-            cout << "Type: " << ntohs(response->TYPE) << endl;
-            cout << "CLASS: " << ntohs(response->CLASS) << endl;
-            cout << "TTL: " << response->TTL << endl;
-            cout << "RDLENGTH: " << ntohs(response->RDLENGTH) << endl;
+            
+            response->TYPE = ntohs(response->TYPE);
+            response->CLASS = ntohs(response->CLASS);
+            response->RDLENGTH = ntohs(response->RDLENGTH);
             
             int type = ntohs(response->TYPE);
             int length =ntohs(response->RDLENGTH);
             string rData;
-            
 
             //a record
             if (type == 1){
@@ -741,12 +743,12 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             }
             
             currentPosition = currentPosition + length;
-            cout << "Rdata: " << rData << endl;
+            //cout << "Rdata: " << rData << endl;
             
             cout << endl;
         }
         
-        cout << "------------------------------------" << endl;
+        //cout << "------------------------------------" << endl;
         
         if (numberOfAnswers == 0 && nextIPs.size() > 0){
             DNSResolver(URL, queryType, nextIPs);
@@ -763,29 +765,19 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             }
             return;
         }
-        
-        cout << "No Answers" << endl;
+        if(queryType == 1) {
+            //a record
+            cout << "No A answers for given domain name" << endl;
+        }
+        else {
+            //aaaa record
+            cout << "No AAAA answers for given domain name" << endl;
+        }
         exit(1);
     }
 }
-/*
- typedef struct{
- unsigned short type: 16; 2
- unsigned short algorithm : 8; 1
- unsigned short label: 8; 1
- unsigned int originalTTL; 4
- unsigned int signatureExpiration; 4
- unsigned int singatureInception; 4
- unsigned short keyTag : 16; 2
- } DnssecResponse;
- 
- 18
-*/
-
-//string getName(char * position, int offset, char * buffer, int & numberOfBytes)
 
 void handleRRSIGRecord(char * currentPosition, int length, int type, char * buffer){
-    
     DnssecResponse * dnssecResponse = (DnssecResponse *)currentPosition;
     dnssecResponse->type = ntohs(dnssecResponse->type);
     dnssecResponse->originalTTL = ntohl(dnssecResponse->originalTTL);
@@ -793,13 +785,14 @@ void handleRRSIGRecord(char * currentPosition, int length, int type, char * buff
     dnssecResponse->singatureInception = ntohl(dnssecResponse->singatureInception);
     dnssecResponse->keyTag = ntohs(dnssecResponse->keyTag);
     
-    cout << "type: " << dnssecResponse->type << endl;
+    /*cout << "type: " << dnssecResponse->type << endl;
     cout << "algorithm: " << dnssecResponse->algorithm << endl;
     cout << "label: " << dnssecResponse->label << endl;
     cout << "originalTTL: " << dnssecResponse->originalTTL << endl;
     cout << "signatureExpiration: " << getDate(dnssecResponse->signatureExpiration) << endl;
     cout << "singatureInception: " << getDate(dnssecResponse->singatureInception) << endl;
     cout << "keyTag: " << dnssecResponse->keyTag << endl;
+    */
     
     currentPosition += 18;
     
@@ -807,13 +800,27 @@ void handleRRSIGRecord(char * currentPosition, int length, int type, char * buff
     
     string signersName = getName(currentPosition, 0, buffer, increment);
     
-    cout << "Signers Name: " << signersName << endl;
+    //cout << "Signers Name: " << signersName << endl;
     
     currentPosition += increment;
     
     string signature = getSignature(currentPosition, (length-increment-18));
     
-    cout << "Signature: " << signature << endl;
+    //cout << "Signature: " << signature << endl;
+}
+
+/*
+ typedef struct{
+ unsigned short TYPE: 16;
+ unsigned short CLASS: 16;
+ int TTL;
+ unsigned short RDLENGTH: 16;
+ } Response;
+ */
+void outputResponse(string name, Response response, string rdata){
+    printf("%-24s.%-8d%-8d%-8d%-8d%s.\n", name.c_str(), response.TYPE, response.CLASS, response.TTL, response.RDLENGTH, rdata.c_str());
+}
+void outputDnnsecResponse(string name, Response response, DnssecResponse dnssecResponse, string signersName, string signature){
     
 }
 
@@ -953,28 +960,7 @@ string getHexFromBinaryString (string bytes)
  */
 void myresolver(string URL, int recordType){
     populateRootServers(IPv4RootServers, IPv6RootServers);
-    
-    /*cout << "Debug: IPv4RootServers  ";
-    for (unsigned int i = 0; i < IPv4RootServers.size(); i++){
-        cout << IPv4RootServers.at(i) << " ";
-    }
-    cout<< endl;
-    
-    cout << "Debug: IPv6RootServers ";
-    for (unsigned int i = 0; i < IPv6RootServers.size(); i++){
-        cout << IPv6RootServers.at(i) << " ";
-    }
-    cout<< endl;
-    */
-    
     DNSResolver(URL, recordType, IPv4RootServers);
-    /*
-    if(recordType == 1) {
-        DNSResolver(URL, recordType, IPv4RootServers);
-    }
-    else {
-        DNSResolver(URL, recordType, IPv6RootServers);
-    }*/
 }
 
 #endif /* MYRESOLVER_H_ */
