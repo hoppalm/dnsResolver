@@ -45,7 +45,6 @@ using std::ifstream;
 using std::istream;
 using std::istringstream;
 using std::bitset;
-using std::ctime;
 
 vector<string> IPv4RootServers;
 vector<string> IPv6RootServers;
