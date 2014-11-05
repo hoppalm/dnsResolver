@@ -104,6 +104,10 @@ typedef struct{
     unsigned short keyTag : 16;
 } DnssecResponse;
 
+//past projects
+vector<string> &split(const string &s, char delim, vector<string> &tokens);
+vector<string> split(const string &s, char delim);
+
 //This project
 int clientSetup(const char * server_IP, const char * port, struct sockaddr_in & serverAddress);
 void myresolver(string URL, string recordType);
@@ -123,6 +127,30 @@ int convertBytesToInt(char * position);
 string getHexFromBinaryString (string bytes);
 void handleRRSIGRecord(char * currentPosition, int length, int type, char * buffer);
 string getSignature(char * currentPosition, int length);
+string getDate(int seconds);
+string getMonth(string month);
+
+/*
+ * Split a string into tokens based upon the delimiter
+ * and add the tokens to the given vector<string>.
+ */
+vector<string> &split(const string &s, char delim, vector<string> &tokens) {
+    stringstream ss(s);
+    string token;
+    while (getline(ss, token, delim)) {
+        tokens.push_back(token);
+    }
+    return tokens;
+}
+
+/*
+ * Split a string into tokens and return them as a vector<string>
+ */
+vector<string> split(const string &s, char delim) {
+    vector<string> tokens;
+    split(s, delim, tokens);
+    return tokens;
+}
 
 /*
  * populates the root server vectors
@@ -770,8 +798,8 @@ void handleRRSIGRecord(char * currentPosition, int length, int type, char * buff
     cout << "algorithm: " << dnssecResponse->algorithm << endl;
     cout << "label: " << dnssecResponse->label << endl;
     cout << "originalTTL: " << dnssecResponse->originalTTL << endl;
-    cout << "signatureExpiration: " << dnssecResponse->signatureExpiration << endl;
-    cout << "singatureInception: " << dnssecResponse->singatureInception << endl;
+    cout << "signatureExpiration: " << getDate(dnssecResponse->signatureExpiration) << endl;
+    cout << "singatureInception: " << getDate(dnssecResponse->singatureInception) << endl;
     cout << "keyTag: " << dnssecResponse->keyTag << endl;
     
     currentPosition += 18;
@@ -790,6 +818,43 @@ void handleRRSIGRecord(char * currentPosition, int length, int type, char * buff
     
 }
 
+
+string getDate(int seconds){
+    long int time = seconds;
+    time_t current_time;
+    current_time = static_cast<time_t>(time);
+    
+    char * c_time_string = ctime(&current_time);
+    c_time_string[strlen(c_time_string) -1] = '\0';
+    string date = string(c_time_string);
+    
+    if (date.at(8) ==' '){
+        date.replace(8,1,"0");
+    }
+    vector<string> timeParsed = split(date,' ');
+    
+    //Fri Oct 31 19:50:05 2014
+    //YYYYMMDDHHmmSS
+    string formattedDate = "";
+    formattedDate.append(timeParsed.at(4));
+    formattedDate.append(getMonth(timeParsed.at(1)));
+    formattedDate.append(timeParsed.at(2));
+    
+    vector<string> timeOfDay = split(timeParsed.at(3), ':');
+    
+    //cout << "Size" << timeOfDay.size() << endl;
+    for (int i = 0; i<timeOfDay.size(); i++){
+        formattedDate.append(timeOfDay.at(i));
+    }
+    
+    //cout << "Year " << timeParsed.at(4) << endl;
+    //cout << "Month " << getMonth(timeParsed.at(1)) << endl;
+    //cout << "Day " << timeParsed.at(2) << endl;
+    //cout << "time " << timeParsed.at(3) << endl;
+    
+    
+    return formattedDate;
+}
 
 int convertBytesToInt(char * position){
     position = position + 4;
@@ -813,6 +878,46 @@ int convertBytesToInt(char * position){
     int TTL = comparebytes.to_ulong();
     
     return TTL;
+}
+
+string getMonth(string month){
+    if (month == "Jan") {
+        return "01";
+    }
+    if (month == "Feb") {
+        return "02";
+    }
+    if (month == "Mar") {
+        return "03";
+    }
+    if (month == "Apr") {
+        return "04";
+    }
+    if (month == "May") {
+        return "05";
+    }
+    if (month == "Jun") {
+        return "06";
+    }
+    if (month == "Jul") {
+        return "07";
+    }
+    if (month == "Aug") {
+        return "08";
+    }
+    if (month == "Sep" || month == "Sept") {
+        return "09";
+    }
+    if (month == "Oct") {
+        return "10";
+    }
+    if (month == "Nov") {
+        return "11";
+    }
+    if (month == "Dec") {
+        return "12";
+    }
+    return "";
 }
 
 
@@ -848,16 +953,7 @@ string getHexFromBinaryString (string bytes)
  * main function for myresolver
  */
 void myresolver(string URL, int recordType){
-
     populateRootServers(IPv4RootServers, IPv6RootServers);
-    long int time = 1414806605;
-    time_t current_time;
-    current_time = static_cast<time_t>(time);
-
-    char * c_time_string = ctime(&current_time);
-    
-    cout << c_time_string << endl;
-    
     
     /*cout << "Debug: IPv4RootServers  ";
     for (unsigned int i = 0; i < IPv4RootServers.size(); i++){
