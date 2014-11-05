@@ -130,6 +130,8 @@ string getDate(int seconds);
 string getMonth(string month);
 void outputResponse(string name, Response response, string rdata);
 void outputDnnsecResponse(string name, Response response, DnssecResponse dnssecResponse, string signersName, string signature);
+string getType(int type);
+string getClass(int classType);
 
 /*
  * Split a string into tokens based upon the delimiter
@@ -442,7 +444,6 @@ string getSignature(char * currentPosition, int length){
 
 string getAAAARData(int length, char * startingPoint){
     string rData;
-    string previous = "";
     string byteString = "";
     int part;
     int counter = 0;
@@ -474,21 +475,13 @@ string getAAAARData(int length, char * startingPoint){
         tempString.append(getHexFromBinaryString(byteString));
         
         startingPoint += 1;
-        if (tempString.length() > 1 && tempString.at(0) == '0'){
-            tempString = tempString.substr(1);
-        }
+        
         rData.append(tempString);
         
-        if (previous == "" && counter == 0){
-            rData.append(1,':');
-            counter++;
-        }
-        else if (previous != "" && (i+1) < length/2){
+        if((i+1) < length/2){
             rData.append(1,':');
             counter = 0;
         }
-        
-        previous = tempString;
         
     }
     return rData;
@@ -816,7 +809,7 @@ void handleRRSIGRecord(char * currentPosition, int length, int queryType, char *
 
 void outputResponse(string name, Response response, string rdata){
     name.append(1,'.');
-    printf("%-30s%-8d%-8d%-8d%s\n", name.c_str(), response.TTL, response.CLASS, response.TYPE, rdata.c_str());
+    printf("%-30s%-8d%-8s%-8s%s\n", name.c_str(), response.TTL, getClass(response.CLASS).c_str(), getType(response.TYPE).c_str(), rdata.c_str());
 }
 /*
  typedef struct{
@@ -832,8 +825,8 @@ void outputResponse(string name, Response response, string rdata){
 void outputDnnsecResponse(string name, Response response, DnssecResponse dnssecResponse, string signersName, string signature){
     name.append(1,'.');
     signersName.append(1,'.');
-    printf("%-30s%-8d%-8d%-8d", name.c_str(), response.TTL, response.CLASS, response.TYPE);
-    printf("%d ", dnssecResponse.type);
+    printf("%-30s%-8d%-8s%-8s", name.c_str(), response.TTL, getClass(response.CLASS).c_str(), getType(response.TYPE).c_str());
+    printf("%s ", getType(dnssecResponse.type).c_str());
     printf("%d ", dnssecResponse.algorithm);
     printf("%d ", dnssecResponse.label);
     printf("%d ", dnssecResponse.originalTTL);
@@ -883,6 +876,29 @@ string getDate(int seconds){
     
     
     return formattedDate;
+}
+
+string getType(int type){
+    if (type == 1) {
+        return "A";
+    }
+    else if (type == 28) {
+        return "AAAA";
+    }
+    else if (type == 5) {
+        return "CNAME";
+    }
+    else if (type == 46) {
+        return "RRSIG";
+    }
+    return "";
+}
+
+string getClass(int classType){
+    if (classType == 1) {
+        return "IN";
+    }
+    return "";
 }
 
 int convertBytesToInt(char * position){
