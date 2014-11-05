@@ -124,7 +124,7 @@ string getAAAARData(int length, char * startingPoint);
 string convertIntToString (int number);
 int convertBytesToInt(char * position);
 string getHexFromBinaryString (string bytes);
-void handleRRSIGRecord(char * currentPosition, int length, int type, char * buffer);
+void handleRRSIGRecord(char * currentPosition, int length, int queryType, char * buffer, string name, Response response);
 string getSignature(char * currentPosition, int length);
 string getDate(int seconds);
 string getMonth(string month);
@@ -587,7 +587,7 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
         
         int numberOfAnswers = ntohs(responseHeader->ancount);
         
-        cout << numberOfAnswers << endl;
+        //cout << numberOfAnswers << endl;
         
         //loop though answers store in the answers vectors
         //cout << "-----------------ANSWERS-------------------" << endl;
@@ -610,9 +610,9 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             response->CLASS = ntohs(response->CLASS);
             response->RDLENGTH = ntohs(response->RDLENGTH);
             
-            int type = ntohs(response->TYPE);
+            int type = response->TYPE;
             
-            int length = ntohs(response->RDLENGTH);
+            int length = response->RDLENGTH;
             
             string cname = "";
             string answerIP = "";
@@ -648,7 +648,7 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             }
             
             if(type == 46){
-                handleRRSIGRecord(currentPosition, length, type, buffer);
+                handleRRSIGRecord(currentPosition, length, queryType, buffer, name, *response);
             }
             
             currentPosition = currentPosition + length;
@@ -680,9 +680,9 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             response->CLASS = ntohs(response->CLASS);
             response->RDLENGTH = ntohs(response->RDLENGTH);
             
-            int type = ntohs(response->TYPE);
+            int type = response->TYPE;
             
-            int length =ntohs(response->RDLENGTH);
+            int length = response->RDLENGTH;
             
             string rData;
             
@@ -691,7 +691,7 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             }
             
             if(type == 46){
-                handleRRSIGRecord(currentPosition, length, type, buffer);
+                //handleRRSIGRecord(currentPosition, length, queryType, buffer, name, *response);
             }
             
             currentPosition = currentPosition + length;
@@ -724,8 +724,9 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             response->CLASS = ntohs(response->CLASS);
             response->RDLENGTH = ntohs(response->RDLENGTH);
             
-            int type = ntohs(response->TYPE);
-            int length =ntohs(response->RDLENGTH);
+            int type = response->TYPE;
+            
+            int length = response->RDLENGTH;
             string rData;
 
             //a record
@@ -739,13 +740,13 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             }
             
             if(type == 46){
-                handleRRSIGRecord(currentPosition, length, type, buffer);
+                //handleRRSIGRecord(currentPosition, length, queryType, buffer, name, *response);
             }
             
             currentPosition = currentPosition + length;
             //cout << "Rdata: " << rData << endl;
             
-            cout << endl;
+            //cout << endl;
         }
         
         //cout << "------------------------------------" << endl;
@@ -777,7 +778,7 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
     }
 }
 
-void handleRRSIGRecord(char * currentPosition, int length, int type, char * buffer){
+void handleRRSIGRecord(char * currentPosition, int length, int queryType, char * buffer, string name, Response response){
     DnssecResponse * dnssecResponse = (DnssecResponse *)currentPosition;
     dnssecResponse->type = ntohs(dnssecResponse->type);
     dnssecResponse->originalTTL = ntohl(dnssecResponse->originalTTL);
@@ -806,22 +807,44 @@ void handleRRSIGRecord(char * currentPosition, int length, int type, char * buff
     
     string signature = getSignature(currentPosition, (length-increment-18));
     
+    if ( queryType == dnssecResponse->type){
+        outputDnnsecResponse(name,response, *dnssecResponse, signersName, signature);
+    }
+    
     //cout << "Signature: " << signature << endl;
 }
 
+void outputResponse(string name, Response response, string rdata){
+    name.append(1,'.');
+    printf("%-30s%-8d%-8d%-8d%s\n", name.c_str(), response.TTL, response.CLASS, response.TYPE, rdata.c_str());
+}
 /*
  typedef struct{
- unsigned short TYPE: 16;
- unsigned short CLASS: 16;
- int TTL;
- unsigned short RDLENGTH: 16;
- } Response;
+ unsigned short type: 16;
+ unsigned short algorithm : 8;
+ unsigned short label: 8;
+ unsigned int originalTTL;
+ unsigned int signatureExpiration;
+ unsigned int singatureInception;
+ unsigned short keyTag : 16;
+ } DnssecResponse;
  */
-void outputResponse(string name, Response response, string rdata){
-    printf("%-24s.%-8d%-8d%-8d%-8d%s.\n", name.c_str(), response.TYPE, response.CLASS, response.TTL, response.RDLENGTH, rdata.c_str());
-}
 void outputDnnsecResponse(string name, Response response, DnssecResponse dnssecResponse, string signersName, string signature){
+    name.append(1,'.');
+    signersName.append(1,'.');
+    printf("%-30s%-8d%-8d%-8d", name.c_str(), response.TTL, response.CLASS, response.TYPE);
+    printf("%d ", dnssecResponse.type);
+    printf("%d ", dnssecResponse.algorithm);
+    printf("%d ", dnssecResponse.label);
+    printf("%d ", dnssecResponse.originalTTL);
     
+    printf("%s ", getDate(dnssecResponse.signatureExpiration).c_str());
+    printf("%s ", getDate(dnssecResponse.singatureInception).c_str());
+    
+    printf("%d ", dnssecResponse.keyTag);
+    
+    printf("%s ", signersName.c_str());
+    printf("%s\n", signature.c_str());
 }
 
 
