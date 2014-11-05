@@ -80,10 +80,10 @@ typedef struct{
 
 typedef struct{
     unsigned char name;
-    unsigned short type: 16;
-    unsigned short payload: 16;
     unsigned char rcode;
     unsigned char version;
+    unsigned short type: 16;
+    unsigned short payload: 16;
     unsigned short Z : 16;
     unsigned short length : 16;
 } Dnssec;
@@ -105,7 +105,7 @@ void populateQuestionPacket(Question * question, int queryType);
 string convertNameToDNS(string URL);
 void sendRecieveDNSQuery(Header* header, Question * question, string DNSUrl, int socket, struct sockaddr_in serverAddress);
 void DNSResolver(string URL, int queryType, vector<string> &rootServers);
-string getName(char * position, int offset, char * buffer);
+string getName(char * position, int offset, char * buffer, int & numberOfBytes);
 int getCompressionInformation(char * currentPosition);
 string getARData(int length, char * startingPoint);
 string getAAAARData(int length, char * startingPoint);
@@ -125,6 +125,7 @@ void populateRootServers(vector<string> &IPv4RootServers, vector<string> &IPv6Ro
     IPv4RootServers.push_back("192.58.128.30");
     IPv4RootServers.push_back("193.0.14.129");
     IPv4RootServers.push_back("199.7.83.42");
+    
     
     //ipv6 servers
     IPv6RootServers.push_back("2001:500:2f::f");
@@ -181,11 +182,11 @@ void populateDNSHeader(Header * header){
 
 void populateDnssecRecord(Dnssec * dnssec){
     dnssec->name = 0;
-    dnssec->type = 41;
-    dnssec->payload = 4096;
+    dnssec->type = htons(41);
+    dnssec->payload = htons(4096);
     dnssec->rcode = 0;
     dnssec->version = 0;
-    dnssec->Z = 32768;
+    dnssec->Z = htons(32768);
     dnssec->length = 0;
 }
 
@@ -294,7 +295,9 @@ int getCompressionInformation(char * currentPosition){
     return offset;
 }
 
-string getName(char * position, int offset, char * buffer){
+string getName(char * position, int offset, char * buffer, int & numberOfBytes){
+    
+    int stopIncrementing = 0;
     
     string name = "";
     position = position + offset;
@@ -302,6 +305,8 @@ string getName(char * position, int offset, char * buffer){
     
     int testCompression = getCompressionInformation(position);
     if (testCompression > 0){
+        numberOfBytes += 2;
+        stopIncrementing = 1;
         position = &buffer[0];
         position = position + testCompression;
     }
@@ -312,7 +317,9 @@ string getName(char * position, int offset, char * buffer){
     int numberOfBytesToAdvance = (int)*temp;
     //cout << "Debug: Number of bytes to advance " << numberOfBytesToAdvance << endl;
     position = position + 1;
-    
+    if(stopIncrementing == 0){
+        numberOfBytes++;
+    }
     while (numberOfBytesToAdvance != 0){
         if(firstIteration != 0){
             name.append(1,'.');
@@ -321,10 +328,17 @@ string getName(char * position, int offset, char * buffer){
             temp = (unsigned char *) position;
             name.append(1,*temp);
             position = position + 1;
+            if(stopIncrementing == 0){
+                numberOfBytes++;
+            }
         }
         
         int testCompression = getCompressionInformation(position);
         if (testCompression > 0){
+            if(stopIncrementing == 0){
+                numberOfBytes+=2;
+            }
+            stopIncrementing = 1;
             position = &buffer[0];
             position = position + testCompression;
         }
@@ -333,8 +347,10 @@ string getName(char * position, int offset, char * buffer){
         
         numberOfBytesToAdvance = (int)*temp;
         //cout << "Debug: Number of bytes to advance " << numberOfBytesToAdvance << endl;
-        
         position = position + 1;
+        if(stopIncrementing == 0){
+            numberOfBytes++;
+        }
         firstIteration++;
     }
     //cout << "Debug: Name returned " << name << endl;
@@ -450,11 +466,25 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
         memcpy(buffer, &header, sizeof(Header));
         memcpy(buffer+sizeof(Header), queryName, strlen(queryName)+1);
         memcpy(buffer+sizeof(Header)+strlen(queryName)+1, &question, sizeof(Question));
+        
+        unsigned short tempType = dnssec.type;
+        unsigned short tempPayload = dnssec.payload;
+        unsigned short tempZ = dnssec.Z;
+        unsigned short tempLength = dnssec.length;
+        
+        memcpy(buffer+sizeof(Header) + strlen(queryName)+1 + sizeof(Question), &dnssec.name, sizeof(unsigned char));
+        memcpy(buffer+sizeof(Header) + strlen(queryName)+1 + sizeof(Question) + 1, &tempType, sizeof(unsigned short));
+        memcpy(buffer+sizeof(Header) + strlen(queryName)+1 + sizeof(Question) + 3, &tempPayload, sizeof(unsigned short));
+        memcpy(buffer+sizeof(Header) + strlen(queryName)+1 + sizeof(Question) + 5, &dnssec.rcode, sizeof(unsigned char));
+        memcpy(buffer+sizeof(Header) + strlen(queryName)+1 + sizeof(Question) + 6, &dnssec.version, sizeof(unsigned char));
+        memcpy(buffer+sizeof(Header) + strlen(queryName)+1 + sizeof(Question) + 7, &tempZ, sizeof(unsigned short));
+        memcpy(buffer+sizeof(Header) + strlen(queryName)+1 + sizeof(Question) + 9, &tempLength, sizeof(unsigned short));
+        
         //memcpy(buffer+sizeof(Header) + strlen(queryName)+1 + sizeof(Question), &dnssec, sizeof(Dnssec));
         
         //cout << "Debug: sending Packet" << endl;
         
-        if( sendto(socket,(char*)buffer,sizeof(Header) + strlen(queryName)+1 + sizeof(Question),0,(struct sockaddr*)&serverAddress,sizeOfStruct) < 0)
+        if( sendto(socket,(char*)buffer,sizeof(Header) + strlen(queryName)+1 + sizeof(Question) + 11,0,(struct sockaddr*)&serverAddress,sizeOfStruct) < 0)
         {
             cout << "Debug: sending query failed" << endl;
             exit(1);
@@ -494,7 +524,7 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
         
         int numberOfAnswers = ntohs(responseHeader->ancount);
         
-        //cout << numberOfAnswers << endl;
+        cout << numberOfAnswers << endl;
         
         //loop though answers store in the answers vectors
         cout << "-----------------ANSWERS-------------------" << endl;
@@ -502,11 +532,13 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
         for(int i = 0; i < numberOfAnswers; i++){
             cout << endl;
             
-            int offset = getCompressionInformation(currentPosition);
-            currentPosition +=2;
+            int numberOfBytes = 0;
             string name = "";
-            offsetPosition = &buffer[0];
-            name = getName(offsetPosition, offset, buffer);
+            name = getName(currentPosition, 0, buffer, numberOfBytes);
+            currentPosition += numberOfBytes;
+            
+            cout << numberOfBytes << endl;
+            
             Response * response = (Response *)currentPosition;
             response->TTL = getTTL(currentPosition);
             currentPosition = currentPosition + 10;
@@ -526,7 +558,7 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             string answerIP = "";
             
             if (type == 5){
-                cname = getName(currentPosition,0,buffer);
+                cname = getName(currentPosition,0,buffer,numberOfBytes);
                 cnames.push_back(cname);
             }
             
@@ -561,11 +593,14 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
         cout << "-----------------AUTHORITES-------------------" << endl;
         for(int i = 0; i < numberOfAuthorities; i++){
             cout << endl;
-            int offset = getCompressionInformation(currentPosition);
-            currentPosition +=2;
+            
+            int numberOfBytes = 0;
             string name = "";
-            offsetPosition = &buffer[0];
-            name = getName(offsetPosition, offset, buffer);
+            name = getName(currentPosition, 0, buffer, numberOfBytes);
+            currentPosition += numberOfBytes;
+            
+            cout << numberOfBytes << endl;
+            
             Response * response = (Response *)currentPosition;
             response->TTL = getTTL(currentPosition);
             currentPosition = currentPosition + 10;
@@ -583,7 +618,7 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             string rData;
             
             if (type == 2){
-                rData = getName(currentPosition,0,buffer);
+                rData = getName(currentPosition,0,buffer,numberOfBytes);
             }
             
             currentPosition = currentPosition + length;
@@ -598,15 +633,16 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
         
         cout << "-----------------ADDITIONAL-------------------" << endl;
         //loop through additionals store ips
-        for(int i = 0; i < numberOfAdditional; i++){
+        for(int i = 0; i < numberOfAdditional-1; i++){
             cout << endl;
             
-            int offset = getCompressionInformation(currentPosition);
-            cout << offset << endl;
-            currentPosition +=2;
+            int numberOfBytes = 0;
             string name = "";
-            offsetPosition = &buffer[0];
-            name = getName(offsetPosition, offset, buffer);
+            name = getName(currentPosition, 0, buffer, numberOfBytes);
+            currentPosition += numberOfBytes;
+            
+            cout << numberOfBytes << endl;
+            
             Response * response = (Response *)currentPosition;
             response->TTL = getTTL(currentPosition);
             currentPosition = currentPosition + 10;
@@ -630,7 +666,6 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             if (type == 28){
                 rData = getAAAARData(length, currentPosition);
             }
-
             
             currentPosition = currentPosition + length;
             cout << "Rdata: " << rData << endl;
