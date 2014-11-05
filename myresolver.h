@@ -45,8 +45,7 @@ using std::ifstream;
 using std::istream;
 using std::istringstream;
 using std::bitset;
-
-#define BUFFERSIZE 512
+using std::ctime;
 
 vector<string> IPv4RootServers;
 vector<string> IPv6RootServers;
@@ -95,6 +94,16 @@ typedef struct{
     unsigned short RDLENGTH: 16;
 } Response;
 
+typedef struct{
+    unsigned short type: 16;
+    unsigned short algorithm : 8;
+    unsigned short label: 8;
+    unsigned int originalTTL;
+    unsigned int signatureExpiration;
+    unsigned int singatureInception;
+    unsigned short keyTag : 16;
+} DnssecResponse;
+
 //This project
 int clientSetup(const char * server_IP, const char * port, struct sockaddr_in & serverAddress);
 void myresolver(string URL, string recordType);
@@ -110,8 +119,10 @@ int getCompressionInformation(char * currentPosition);
 string getARData(int length, char * startingPoint);
 string getAAAARData(int length, char * startingPoint);
 string convertIntToString (int number);
-int getTTL(char * position);
+int convertBytesToInt(char * position);
 string getHexFromBinaryString (string bytes);
+void handleRRSIGRecord(char * currentPosition, int length, int type, char * buffer);
+string getSignature(char * currentPosition, int length);
 
 /*
  * populates the root server vectors
@@ -376,6 +387,30 @@ string getARData(int length, char * startingPoint){
     return rData;
 }
 
+string getSignature(char * currentPosition, int length){
+    string signature;
+    unsigned char * temp;
+    string byteString = "";
+    int part;
+    
+    for (int i = 0; i < length; i++){
+        string tempString = "";
+        
+        temp = (unsigned char *) currentPosition;
+        
+        part = (int)*temp;
+        
+        bitset<8> bits (part);
+        
+        byteString = bits.to_string();
+        
+        signature.append(getHexFromBinaryString(byteString));
+        currentPosition+=1;
+    }
+    
+    return signature;
+}
+
 string getAAAARData(int length, char * startingPoint){
     string rData;
     string previous = "";
@@ -540,7 +575,7 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             cout << numberOfBytes << endl;
             
             Response * response = (Response *)currentPosition;
-            response->TTL = getTTL(currentPosition);
+            response->TTL = convertBytesToInt(currentPosition);
             currentPosition = currentPosition + 10;
             
             cout << "Name: " << name << endl;
@@ -548,7 +583,6 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             cout << "CLASS: " << ntohs(response->CLASS) << endl;
             cout << "TTL: " << response->TTL << endl;
             cout << "RDLENGTH: " << ntohs(response->RDLENGTH) << endl;
-            
             
             int type = ntohs(response->TYPE);
             
@@ -577,6 +611,10 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
                 }
             }
             
+            if(type == 46){
+                handleRRSIGRecord(currentPosition, length, type, buffer);
+            }
+            
             currentPosition = currentPosition + length;
             cout << "Cname: " << cname<< endl;
             cout << "answerIP: " << answerIP<< endl;
@@ -602,7 +640,7 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             cout << numberOfBytes << endl;
             
             Response * response = (Response *)currentPosition;
-            response->TTL = getTTL(currentPosition);
+            response->TTL = convertBytesToInt(currentPosition);
             currentPosition = currentPosition + 10;
             
             cout << "Name: " << name << endl;
@@ -619,6 +657,10 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             
             if (type == 2){
                 rData = getName(currentPosition,0,buffer,numberOfBytes);
+            }
+            
+            if(type == 46){
+                handleRRSIGRecord(currentPosition, length, type, buffer);
             }
             
             currentPosition = currentPosition + length;
@@ -644,7 +686,7 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             cout << numberOfBytes << endl;
             
             Response * response = (Response *)currentPosition;
-            response->TTL = getTTL(currentPosition);
+            response->TTL = convertBytesToInt(currentPosition);
             currentPosition = currentPosition + 10;
             cout << "Name: " << name << endl;
             cout << "Type: " << ntohs(response->TYPE) << endl;
@@ -665,6 +707,10 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             //aaaa record
             if (type == 28){
                 rData = getAAAARData(length, currentPosition);
+            }
+            
+            if(type == 46){
+                handleRRSIGRecord(currentPosition, length, type, buffer);
             }
             
             currentPosition = currentPosition + length;
@@ -695,8 +741,57 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
         exit(1);
     }
 }
+/*
+ typedef struct{
+ unsigned short type: 16; 2
+ unsigned short algorithm : 8; 1
+ unsigned short label: 8; 1
+ unsigned int originalTTL; 4
+ unsigned int signatureExpiration; 4
+ unsigned int singatureInception; 4
+ unsigned short keyTag : 16; 2
+ } DnssecResponse;
+ 
+ 18
+*/
 
-int getTTL(char * position){
+//string getName(char * position, int offset, char * buffer, int & numberOfBytes)
+
+void handleRRSIGRecord(char * currentPosition, int length, int type, char * buffer){
+    
+    DnssecResponse * dnssecResponse = (DnssecResponse *)currentPosition;
+    dnssecResponse->type = ntohs(dnssecResponse->type);
+    dnssecResponse->originalTTL = ntohl(dnssecResponse->originalTTL);
+    dnssecResponse->signatureExpiration = ntohl(dnssecResponse->signatureExpiration);
+    dnssecResponse->singatureInception = ntohl(dnssecResponse->singatureInception);
+    dnssecResponse->keyTag = ntohs(dnssecResponse->keyTag);
+    
+    cout << "type: " << dnssecResponse->type << endl;
+    cout << "algorithm: " << dnssecResponse->algorithm << endl;
+    cout << "label: " << dnssecResponse->label << endl;
+    cout << "originalTTL: " << dnssecResponse->originalTTL << endl;
+    cout << "signatureExpiration: " << dnssecResponse->signatureExpiration << endl;
+    cout << "singatureInception: " << dnssecResponse->singatureInception << endl;
+    cout << "keyTag: " << dnssecResponse->keyTag << endl;
+    
+    currentPosition += 18;
+    
+    int increment = 0;
+    
+    string signersName = getName(currentPosition, 0, buffer, increment);
+    
+    cout << "Signers Name: " << signersName << endl;
+    
+    currentPosition += increment;
+    
+    string signature = getSignature(currentPosition, (length-increment-18));
+    
+    cout << "Signature: " << signature << endl;
+    
+}
+
+
+int convertBytesToInt(char * position){
     position = position + 4;
     bitset<32> comparebytes(string("11111111111111111111111111111111"));
     int index = 31;
@@ -719,6 +814,7 @@ int getTTL(char * position){
     
     return TTL;
 }
+
 
 string getHexFromBinaryString (string bytes)
 {
@@ -745,9 +841,6 @@ string getHexFromBinaryString (string bytes)
         if (binaryValue == "1111") hexReturn.append(1,'f');
         bytes = bytes.substr(4);
     }
-    if (hexReturn == "00"){
-        return "";
-    }
     return hexReturn;
 }
 
@@ -757,6 +850,14 @@ string getHexFromBinaryString (string bytes)
 void myresolver(string URL, int recordType){
 
     populateRootServers(IPv4RootServers, IPv6RootServers);
+    long int time = 1414806605;
+    time_t current_time;
+    current_time = static_cast<time_t>(time);
+
+    char * c_time_string = ctime(&current_time);
+    
+    cout << c_time_string << endl;
+    
     
     /*cout << "Debug: IPv4RootServers  ";
     for (unsigned int i = 0; i < IPv4RootServers.size(); i++){
