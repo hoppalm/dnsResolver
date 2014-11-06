@@ -750,7 +750,10 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
         }
         
         if (numberOfAnswers == 0 && nextIPs.size() == 0){
-            currentServerID++;
+            if(currentServerID+1 < rootServers.size()){
+                currentServerID++;
+                continue;
+            }
         }
         
         if (numberOfAnswers > 0){
@@ -762,12 +765,14 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
         if(queryType == 1) {
             //a record
             cout << "No A answers for given domain name" << endl;
+            exit(1);
         }
         else {
             //aaaa record
             cout << "No AAAA answers for given domain name" << endl;
+            exit(1);
         }
-        exit(1);
+        
     }
 }
 
