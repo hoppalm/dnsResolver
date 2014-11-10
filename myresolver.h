@@ -195,6 +195,15 @@ int clientSetup(const char * server_IP, const char * port, struct sockaddr_in & 
         cout << "ERROR creating client socket" << endl;
         exit(1);
     }
+
+    struct timeval timeout;
+    timeout.tv_sec = 3;
+    timeout.tv_usec = 0;
+    if (setsockopt(clientSocket, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout)) < 0) {
+    	perror("Error: unable to set timeout for UDP socket.");
+    	exit(1);
+    }
+
     memset(&serverAddress, 0, sizeof(serverAddress));
     serverAddress.sin_family = AF_INET;
     serverAddress.sin_addr.s_addr= inet_addr(server_IP);
@@ -610,7 +619,7 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
         
         if(recvfrom (socket,(char*)buffer,65536,0,(struct sockaddr*)&serverAddress,&sizeOfStruct) < 0)
         {
-            cout << "Receive query failed going to next server" << endl;
+            cout << "Receive query timed out or failed. Trying another server now." << endl;
             currentServerID++;
             continue;
         }
