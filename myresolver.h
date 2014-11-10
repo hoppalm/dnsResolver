@@ -121,6 +121,7 @@ string getName(char * position, int offset, char * buffer, int & numberOfBytes);
 int getCompressionInformation(char * currentPosition);
 string getARData(int length, char * startingPoint);
 string getAAAARData(int length, char * startingPoint);
+string abbreviateIPv6Address(string ipv6address);
 string convertIntToString (int number);
 int convertBytesToInt(char * position);
 string getHexFromBinaryString (string bytes);
@@ -484,7 +485,65 @@ string getAAAARData(int length, char * startingPoint){
         }
         
     }
-    return rData;
+    return abbreviateIPv6Address(rData);
+}
+
+string abbreviateIPv6Address(string ipv6address) {
+	/* Longest run of 0's changed to '::' (unless longest run is only one set of 0's)
+	 * Other sets of 0's are shortened to one 0
+	 * Leading 0's are trimmed
+	 *
+	 * 2a03:2880:2110:9f07:face:b00c:0000:0001
+	 * 2a03:2880:2110:9f07:face:b00c:0:1
+	 *
+	 * 2607:f8b0:4009:0800:0000:0000:0000:1012
+	 * 2607:f8b0:4009:800::1012
+	 */
+
+	vector<string> blocks = split(ipv6address, ':');
+
+	// trim leading 0's from the blocks
+	for (unsigned int i = 0; i < blocks.size(); i++) {
+		for (int j = 0; blocks.at(i)[0] == '0' && j < 3; j++) {
+			blocks.at(i) = blocks.at(i).substr(1);
+		}
+	}
+
+	//find longest run of 0's
+	int longestRunLength = 0;
+	int longestRunIndex = -1;
+
+	for (unsigned int i = 0; i < blocks.size(); i++) {
+		int currentRunLength = 0;
+		int currentRunIndex = -1;
+		if (blocks.at(i).compare("0") == 0) {
+			currentRunIndex = i;
+			currentRunLength = 1;
+			unsigned int j = 1;
+			while (i+j < blocks.size() && blocks.at(i+j).compare("0") == 0) {
+				currentRunLength++;
+				j++;
+			}
+			if (currentRunLength > longestRunLength) {
+				longestRunLength = currentRunLength;
+				longestRunIndex = i;
+			}
+			i += j;
+		}
+	}
+
+	if (longestRunLength > 1) {
+		blocks.erase(blocks.begin()+longestRunIndex, blocks.begin()+longestRunIndex+longestRunLength);
+		blocks.insert(blocks.begin()+longestRunIndex, "");
+	}
+
+	string abbreviated = "";
+	for (unsigned int i = 0; i < blocks.size(); i++) {
+		abbreviated += blocks.at(i);
+		abbreviated += ':';
+	}
+	abbreviated = abbreviated.substr(0, abbreviated.size()-1);
+	return abbreviated;
 }
 
 void DNSResolver(string URL, int queryType, vector<string> &rootServers){
