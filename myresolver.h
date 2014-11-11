@@ -127,6 +127,7 @@ int convertBytesToInt(char * position);
 string getHexFromBinaryString (string bytes);
 void handleRRSIGRecord(char * currentPosition, int length, int queryType, char * buffer, string name, Response response);
 string getSignature(char * currentPosition, int length);
+string getBase64FromBinary(const string &bitstring);
 string getDate(int seconds);
 string getMonth(string month);
 void outputResponse(string name, Response response, string rdata);
@@ -445,11 +446,47 @@ string getSignature(char * currentPosition, int length){
         
         byteString = bits.to_string();
         
-        signature.append(getHexFromBinaryString(byteString));
+        //signature.append(getHexFromBinaryString(byteString));
+        signature.append(byteString);
         currentPosition+=1;
     }
     
-    return signature;
+    return getBase64FromBinary(signature);
+}
+
+string getBase64FromBinary(const string &bitstring) {
+	const string base64_chars =
+			"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+			"abcdefghijklmnopqrstuvwxyz"
+			"0123456789+/";
+	string copyBitstring(bitstring);
+	string base64 = "";
+
+	while (copyBitstring.size() >= 6) {
+		int index = 0;
+		string sixbits = copyBitstring.substr(0, 6);
+		int factor = 1;
+		for (int i = 5; i >= 0; i--) {
+			int bit = sixbits[i] == '0'? 0 : 1;
+			index += bit*factor;
+			factor *= 2;
+		}
+		base64 += base64_chars[index];
+		copyBitstring = copyBitstring.substr(6);
+		if (0 < copyBitstring.size() && copyBitstring.size() < 6) {
+			while (copyBitstring.size() != 6) {
+				copyBitstring += '0';
+			}
+		}
+	}
+	// append '=' based upon size % 24
+	switch (bitstring.size() % 24) {
+	case 0: break;
+	case 8: base64 += "=="; break;
+	case 16: base64 += "="; break;
+	}
+
+	return base64;
 }
 
 string getAAAARData(int length, char * startingPoint){
