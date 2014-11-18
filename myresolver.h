@@ -669,6 +669,7 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
         if (responseHeader->tc == 1) {
             cerr << "Error truncated bit was set in response header" << endl;
             //TO DO handle situation
+            exit(1);
         }
         char rcode = responseHeader->rcode;
         if (rcode == 2 && rcode == 4 && rcode == 5){
