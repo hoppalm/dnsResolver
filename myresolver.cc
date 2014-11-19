@@ -9,6 +9,10 @@
 #include <string>
 #include "myresolver.h"
 
+/*
+ * main function for myresolver, parses the input. Make sure the url is there
+ * and checks if there is specifies record type (A or AAAA)
+ */
 int main(int argc, char* argv[]) {
     
 	string URL = "";

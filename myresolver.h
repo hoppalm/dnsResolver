@@ -46,10 +46,15 @@ using std::istream;
 using std::istringstream;
 using std::bitset;
 
+/*
+ * Root Servers to start initial dig on
+ */
 vector<string> IPv4RootServers;
 vector<string> IPv6RootServers;
 
-//Header Struct
+/*
+ * Header Struct for the dns header
+ */
 typedef struct{
     unsigned int id : 16; /*A 16 bit identifier assigned by the program that generates any kind of query*/
     unsigned char rd: 1; /* this bit directs the name server to pursue the query recursively*/
@@ -70,12 +75,17 @@ typedef struct{
                                records section*/
 } Header;
 
+/*
+ * Question Struct for the dns question section
+ */
 typedef struct{
     unsigned int QTYPE: 16;
     unsigned int QCLASS: 16;
 } Question;
 
-
+/*
+ * RRSIG Struct for the dns authority to get signatures
+ */
 typedef struct{
     unsigned char name;
     unsigned char rcode;
@@ -86,6 +96,9 @@ typedef struct{
     unsigned short length : 16;
 } Dnssec;
 
+/*
+ * Response Struct for the dns response sections
+ */
 typedef struct{
     unsigned short TYPE: 16;
     unsigned short CLASS: 16;
@@ -93,6 +106,9 @@ typedef struct{
     unsigned short RDLENGTH: 16;
 } Response;
 
+/*
+ * Response Struct return signatures for the dns signatures
+ */
 typedef struct{
     unsigned short type: 16;
     unsigned short algorithm : 8;
@@ -180,6 +196,9 @@ void populateRootServers(vector<string> &IPv4RootServers, vector<string> &IPv6Ro
     IPv6RootServers.push_back("2001:500:3::42");
 }
 
+/*
+ * Convert int to string to output
+ */
 string convertIntToString (int number){
     ostringstream tempString;
     tempString<<number;
@@ -197,6 +216,7 @@ int clientSetup(const char * server_IP, const char * port, struct sockaddr_in & 
         exit(1);
     }
 
+    //check for timeout
     struct timeval timeout;
     timeout.tv_sec = 3;
     timeout.tv_usec = 0;
@@ -233,6 +253,9 @@ void populateDNSHeader(Header * header){
     header->arcount = htons(1); // one addtion of signatures
 }
 
+/*
+ * Populating DNS Sec Packet
+ */
 void populateDnssecRecord(Dnssec * dnssec){
     dnssec->name = 0;
     dnssec->type = htons(41);
@@ -243,11 +266,17 @@ void populateDnssecRecord(Dnssec * dnssec){
     dnssec->length = 0;
 }
 
+/*
+ * Populating Question Packet
+ */
 void populateQuestionPacket(Question * question, int queryType){
     question->QTYPE = htons(queryType);
     question->QCLASS = htons(1);
 }
 
+/*
+ * Convert Name to DNS replacing the . with the number of characters till the next
+ */
 string convertNameToDNS(string URL){
     
     vector<int> indexes;
@@ -303,7 +332,9 @@ string convertNameToDNS(string URL){
     return DNSName;
 }
 
-//get offset number for the compression
+/*
+ * Get offset number for the compression
+ */
 int getCompressionInformation(char * currentPosition){
     unsigned char * temp;
     int asciiNumbers[2];
@@ -331,6 +362,7 @@ int getCompressionInformation(char * currentPosition){
         return -1;
     }
     
+    //To and with to get the offset
     bitset<16> comparebytes(string("0011111111111111"));
     
     for (int i = 0; i < 15; i++){
@@ -348,6 +380,9 @@ int getCompressionInformation(char * currentPosition){
     return offset;
 }
 
+/*
+ * Get name from the response packet weather that is an authority or additional
+ */
 string getName(char * position, int offset, char * buffer, int & numberOfBytes){
     
     int stopIncrementing = 0;
@@ -356,6 +391,7 @@ string getName(char * position, int offset, char * buffer, int & numberOfBytes){
     position = position + offset;
     int firstIteration = 0;
     
+    //See if compression is used
     int testCompression = getCompressionInformation(position);
     if (testCompression > 0){
         numberOfBytes += 2;
@@ -386,6 +422,7 @@ string getName(char * position, int offset, char * buffer, int & numberOfBytes){
             }
         }
         
+        //See if compression is used
         int testCompression = getCompressionInformation(position);
         if (testCompression > 0){
             if(stopIncrementing == 0){
@@ -410,6 +447,9 @@ string getName(char * position, int offset, char * buffer, int & numberOfBytes){
     return name;
 }
 
+/*
+ * Get A IP address to return for A records
+ */
 string getARData(int length, char * startingPoint){
     string rData = "";
     for (int i = 0; i < length; i++) {
@@ -429,6 +469,9 @@ string getARData(int length, char * startingPoint){
     return rData;
 }
 
+/*
+ * Get Signature for RRSIG Functions
+ */
 string getSignature(char * currentPosition, int length){
     string signature;
     unsigned char * temp;
@@ -451,9 +494,13 @@ string getSignature(char * currentPosition, int length){
         currentPosition+=1;
     }
     
+    //convert
     return getBase64FromBinary(signature);
 }
 
+/*
+ * Convert input signature string from binary to Base64
+ */
 string getBase64FromBinary(const string &bitstring) {
 	const string base64_chars =
 			"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -489,6 +536,9 @@ string getBase64FromBinary(const string &bitstring) {
 	return base64;
 }
 
+/*
+ * Get AAAA record IP address to return
+ */
 string getAAAARData(int length, char * startingPoint){
     string rData;
     string byteString = "";
@@ -534,6 +584,9 @@ string getAAAARData(int length, char * startingPoint){
     return abbreviateIPv6Address(rData);
 }
 
+/*
+ * Format AAAA IP address to correct abbreviation
+ */
 string abbreviateIPv6Address(string ipv6address) {
 	/* Longest run of 0's changed to '::' (unless longest run is only one set of 0's)
 	 * Other sets of 0's are shortened to one 0
@@ -592,6 +645,10 @@ string abbreviateIPv6Address(string ipv6address) {
 	return abbreviated;
 }
 
+/*
+ * Main Function for DNS Resolver iteratively looks for an answer for input URL
+ * of record type variablequeryType
+ */
 void DNSResolver(string URL, int queryType, vector<string> &rootServers){
     
     int currentServerID = 0;
@@ -600,16 +657,20 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
     Header header;
     Question question;
     Dnssec dnssec;
+    
+    // Build header with dnssec record
     populateDNSHeader(&header);
     populateDnssecRecord(&dnssec);
     
     while (loop) {
         
+        //get current IP to query on
         string currentIP = rootServers.at(currentServerID);
         
         struct sockaddr_in serverAddress;
         int socket = clientSetup(currentIP.c_str(), "53", serverAddress);
         
+        //make question packet
         populateQuestionPacket(&question, queryType);
         
         string DNSUrl = convertNameToDNS(URL);
@@ -619,6 +680,8 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
         vector<string> cnames;
         vector<string> answerIPs;
         char * currentPosition;
+        
+        //add question packet to a buffer to send to server
         
         unsigned int sizeOfStruct = sizeof(serverAddress);
         char buffer [65536];
@@ -633,6 +696,7 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
         unsigned short tempZ = dnssec.Z;
         unsigned short tempLength = dnssec.length;
         
+        //copy over dns info
         memcpy(buffer+sizeof(Header) + strlen(queryName)+1 + sizeof(Question), &dnssec.name, sizeof(unsigned char));
         memcpy(buffer+sizeof(Header) + strlen(queryName)+1 + sizeof(Question) + 1, &tempType, sizeof(unsigned short));
         memcpy(buffer+sizeof(Header) + strlen(queryName)+1 + sizeof(Question) + 3, &tempPayload, sizeof(unsigned short));
@@ -672,6 +736,7 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             exit(1);
         }
         char rcode = responseHeader->rcode;
+        //go to next server
         if (rcode == 2 && rcode == 4 && rcode == 5){
             currentServerID++;
             continue;
@@ -686,20 +751,13 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
         
         int numberOfAnswers = ntohs(responseHeader->ancount);
         
-        //cout << numberOfAnswers << endl;
-        
         //loop though answers store in the answers vectors
-        //cout << "-----------------ANSWERS-------------------" << endl;
-        
         for(int i = 0; i < numberOfAnswers; i++){
-            //cout << endl;
             
             int numberOfBytes = 0;
             string name = "";
             name = getName(currentPosition, 0, buffer, numberOfBytes);
             currentPosition += numberOfBytes;
-            
-            //cout << numberOfBytes << endl;
             
             Response * response = (Response *)currentPosition;
             response->TTL = convertBytesToInt(currentPosition);
@@ -718,30 +776,24 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             
             
             if (type == 5){
-                //print stuff
                 cname = getName(currentPosition,0,buffer,numberOfBytes);
                 cnames.push_back(cname);
                 outputResponse(name, *response, cname);
-                //cout << "Cname: " << cname<< endl;
             }
             
             if(queryType == 1) {
                 //a record
                 if (type == 1){
-                    //print stuff
                     answerIP = getARData(length, currentPosition);
                     answerIPs.push_back(answerIP);
-                    //cout << "answerIP: " << answerIP<< endl;
                     outputResponse(name, *response, answerIP);
                 }
             }
             else {
                 //aaaa record
                 if (type == 28){
-                    //print stuff
                     answerIP = getAAAARData(length, currentPosition);
                     answerIPs.push_back(answerIP);
-                    //cout << "answerIP: " << answerIP<< endl;
                     outputResponse(name, *response, answerIP);
                 }
             }
@@ -752,24 +804,17 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             
             currentPosition = currentPosition + length;
             
-            //cout << endl;
         }
-        
-        //cout << "----------------------------------------------" << endl;
         
         int numberOfAuthorities = ntohs(responseHeader->nscount);
         
         //loop through authorities "dont need to process anything"
-        //cout << "-----------------AUTHORITES-------------------" << endl;
         for(int i = 0; i < numberOfAuthorities; i++){
-            //cout << endl;
             
             int numberOfBytes = 0;
             string name = "";
             name = getName(currentPosition, 0, buffer, numberOfBytes);
             currentPosition += numberOfBytes;
-            
-            //cout << numberOfBytes << endl;
             
             Response * response = (Response *)currentPosition;
             response->TTL = convertBytesToInt(currentPosition);
@@ -794,26 +839,18 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             }
             
             currentPosition = currentPosition + length;
-            //cout << "Rdata: " << rData << endl;
-            
-            //cout << endl;
         }
-        //cout << "----------------------------------------------" << endl;
         
         
         int numberOfAdditional = ntohs(responseHeader->arcount);
         
-        //cout << "-----------------ADDITIONAL-------------------" << endl;
         //loop through additionals store ips
         for(int i = 0; i < numberOfAdditional-1; i++){
-            //cout << endl;
             
             int numberOfBytes = 0;
             string name = "";
             name = getName(currentPosition, 0, buffer, numberOfBytes);
             currentPosition += numberOfBytes;
-            
-            //cout << numberOfBytes << endl;
             
             Response * response = (Response *)currentPosition;
             response->TTL = convertBytesToInt(currentPosition);
@@ -829,6 +866,7 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             string rData;
 
             //a record
+            //add to list to requery if no answer was found
             if (type == 1){
                 rData = getARData(length, currentPosition);
                 nextIPs.push_back(rData);
@@ -843,18 +881,15 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             }
             
             currentPosition = currentPosition + length;
-            //cout << "Rdata: " << rData << endl;
-            
-            //cout << endl;
         }
         
-        //cout << "------------------------------------" << endl;
-        
+        //no answers and have IPs to next query
         if (numberOfAnswers == 0 && nextIPs.size() > 0){
             DNSResolver(URL, queryType, nextIPs);
             return;
         }
         
+        //no answers and have no IPS to query go to next current server
         if (numberOfAnswers == 0 && nextIPs.size() == 0){
             if(currentServerID+1 < rootServers.size()){
                 currentServerID++;
@@ -862,7 +897,9 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
             }
         }
         
+        //Found answers
         if (numberOfAnswers > 0){
+            //need to chase cnames if those are the only answers found
             if (cnames.size() > 0 && answerIPs.size() == 0){
                 DNSResolver(cnames.at(0), queryType, IPv4RootServers);
             }
@@ -882,7 +919,11 @@ void DNSResolver(string URL, int queryType, vector<string> &rootServers){
     }
 }
 
+/*
+ * Main Function for Handling RRSIG Record parses and populates needed information
+ */
 void handleRRSIGRecord(char * currentPosition, int length, int queryType, char * buffer, string name, Response response){
+    //populate header
     DnssecResponse * dnssecResponse = (DnssecResponse *)currentPosition;
     dnssecResponse->type = ntohs(dnssecResponse->type);
     dnssecResponse->originalTTL = ntohl(dnssecResponse->originalTTL);
@@ -890,25 +931,18 @@ void handleRRSIGRecord(char * currentPosition, int length, int queryType, char *
     dnssecResponse->singatureInception = ntohl(dnssecResponse->singatureInception);
     dnssecResponse->keyTag = ntohs(dnssecResponse->keyTag);
     
-    /*cout << "type: " << dnssecResponse->type << endl;
-    cout << "algorithm: " << dnssecResponse->algorithm << endl;
-    cout << "label: " << dnssecResponse->label << endl;
-    cout << "originalTTL: " << dnssecResponse->originalTTL << endl;
-    cout << "signatureExpiration: " << getDate(dnssecResponse->signatureExpiration) << endl;
-    cout << "singatureInception: " << getDate(dnssecResponse->singatureInception) << endl;
-    cout << "keyTag: " << dnssecResponse->keyTag << endl;
-    */
-    
     currentPosition += 18;
     
     int increment = 0;
     
+    //get signersName
     string signersName = getName(currentPosition, 0, buffer, increment);
     
     //cout << "Signers Name: " << signersName << endl;
     
     currentPosition += increment;
     
+    //get signature
     string signature = getSignature(currentPosition, (length-increment-18));
     
     if ( queryType == dnssecResponse->type){
@@ -918,20 +952,16 @@ void handleRRSIGRecord(char * currentPosition, int length, int queryType, char *
     //cout << "Signature: " << signature << endl;
 }
 
+/*
+ * Output response from response struct and response data
+ */
 void outputResponse(string name, Response response, string rdata){
     name.append(1,'.');
     printf("%-30s%-8d%-8s%-8s%s\n", name.c_str(), response.TTL, getClass(response.CLASS).c_str(), getType(response.TYPE).c_str(), rdata.c_str());
 }
+
 /*
- typedef struct{
- unsigned short type: 16;
- unsigned short algorithm : 8;
- unsigned short label: 8;
- unsigned int originalTTL;
- unsigned int signatureExpiration;
- unsigned int singatureInception;
- unsigned short keyTag : 16;
- } DnssecResponse;
+ * Output Dnnsec resposne from response struct, dnssec Response, and response signersName/signature
  */
 void outputDnnsecResponse(string name, Response response, DnssecResponse dnssecResponse, string signersName, string signature){
     name.append(1,'.');
@@ -951,7 +981,9 @@ void outputDnnsecResponse(string name, Response response, DnssecResponse dnssecR
     printf("%s\n", signature.c_str());
 }
 
-
+/*
+ * Get data for RRSIG records
+ */
 string getDate(int seconds){
     long int time = seconds;
     time_t current_time;
@@ -989,6 +1021,9 @@ string getDate(int seconds){
     return formattedDate;
 }
 
+/*
+ * Get type correlating to int type (Used for printing)
+ */
 string getType(int type){
     if (type == 1) {
         return "A";
@@ -1005,6 +1040,9 @@ string getType(int type){
     return "";
 }
 
+/*
+ * Get class correlating to int class (Used for printing)
+ */
 string getClass(int classType){
     if (classType == 1) {
         return "IN";
@@ -1012,10 +1050,15 @@ string getClass(int classType){
     return "";
 }
 
+/*
+ * Converting a 32 byte to an int
+ */
 int convertBytesToInt(char * position){
     position = position + 4;
+    //used for andding
     bitset<32> comparebytes(string("11111111111111111111111111111111"));
     int index = 31;
+    //grab for bytes
     for (int i = 0; i < 4; i++){
         unsigned char * temp;
         temp = (unsigned char *)position;
@@ -1036,6 +1079,9 @@ int convertBytesToInt(char * position){
     return TTL;
 }
 
+/*
+ * get month number used for getting date in RRSIG response
+ */
 string getMonth(string month){
     if (month == "Jan") {
         return "01";
@@ -1077,6 +1123,9 @@ string getMonth(string month){
 }
 
 
+/*
+ * get hex from a string array. Used for getting IPv6 addresses
+ */
 string getHexFromBinaryString (string bytes)
 {
     string hexReturn = "";
